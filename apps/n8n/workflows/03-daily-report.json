@@ -1,0 +1,148 @@
+﻿{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567803",
+  "name": "📊 Daily Cluster Report (09:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "id": "aa01bb02-cc03-dd04-ee05-ff0607080910",
+      "name": "Daily at 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.K8S_API_HOST }}/api/v1/nodes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.K8S_API_TOKEN }}" }
+          ]
+        },
+        "options": { "allowUnauthorizedCerts": true }
+      },
+      "id": "bb02cc03-dd04-ee05-ff06-071819202122",
+      "name": "Get Nodes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.K8S_API_HOST }}/api/v1/pods",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.K8S_API_TOKEN }}" }
+          ]
+        },
+        "options": { "allowUnauthorizedCerts": true }
+      },
+      "id": "cc03dd04-ee05-ff06-0708-192021222324",
+      "name": "Get All Pods",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.K8S_API_HOST }}/api/v1/persistentvolumeclaims",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.K8S_API_TOKEN }}" }
+          ]
+        },
+        "options": { "allowUnauthorizedCerts": true }
+      },
+      "id": "dd04ee05-ff06-0708-0910-202122232425",
+      "name": "Get PVCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 440]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.K8S_API_HOST }}/apis/velero.io/v1/namespaces/velero/backups",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.K8S_API_TOKEN }}" }
+          ]
+        },
+        "options": { "allowUnauthorizedCerts": true }
+      },
+      "id": "ee05ff06-0708-0910-1112-212223242526",
+      "name": "Get Backups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 580]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect data from all previous nodes\nconst nodes = $('Get Nodes').first().json.items || [];\nconst pods = $('Get All Pods').first().json.items || [];\nconst pvcs = $('Get PVCs').first().json.items || [];\nconst backups = $('Get Backups').first().json.items || [];\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('uk-UA', { timeZone: 'Europe/Kiev', day: '2-digit', month: '2-digit', year: 'numeric' });\nconst timeStr = now.toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kiev', hour: '2-digit', minute: '2-digit' });\n\n// Nodes\nconst nodesReady = nodes.filter(n => n.status.conditions?.find(c => c.type === 'Ready' && c.status === 'True')).length;\nlet nodesSection = `🖥️ <b>Nodes:</b> ${nodesReady}/${nodes.length} Ready`;\nif (nodesReady < nodes.length) {\n  const notReady = nodes.filter(n => !n.status.conditions?.find(c => c.type === 'Ready' && c.status === 'True'));\n  nodesSection += `\\n⚠️ Not ready: ${notReady.map(n => n.metadata.name).join(', ')}`;\n}\n\n// Pods by phase\nconst podsByPhase = {};\nfor (const pod of pods) {\n  const phase = pod.status.phase || 'Unknown';\n  podsByPhase[phase] = (podsByPhase[phase] || 0) + 1;\n}\nconst problemPods = pods.filter(p => {\n  const phase = p.status.phase;\n  if (phase === 'Running') {\n    return (p.status.containerStatuses || []).some(c => c.restartCount > 5);\n  }\n  return phase !== 'Running' && phase !== 'Succeeded';\n});\nlet podsSection = `📦 <b>Pods:</b> ${pods.length} total\\n`;\npodsSection += `   ✅ Running: ${podsByPhase['Running'] || 0} | ⏳ Pending: ${podsByPhase['Pending'] || 0} | ❌ Failed: ${podsByPhase['Failed'] || 0}`;\nif (problemPods.length > 0) {\n  podsSection += `\\n⚠️ High restarts (>5): ${problemPods.length} pods`;\n  for (const pod of problemPods.slice(0, 3)) {\n    const restarts = (pod.status.containerStatuses || []).reduce((s, c) => s + c.restartCount, 0);\n    podsSection += `\\n   🔴 ${pod.metadata.namespace}/${pod.metadata.name} (${restarts} restarts)`;\n  }\n}\n\n// PVCs\nconst pvcsOk = pvcs.filter(p => p.status.phase === 'Bound').length;\nconst pvcsFail = pvcs.filter(p => p.status.phase !== 'Bound').length;\nconst totalGi = pvcs.reduce((sum, p) => {\n  const q = p.spec.resources?.requests?.storage || '0';\n  return sum + parseInt(q);\n}, 0);\nlet pvcsSection = `💾 <b>PVCs:</b> ${pvcsOk} Bound`;\nif (pvcsFail > 0) pvcsSection += ` | ⚠️ ${pvcsFail} not Bound`;\n\n// Velero backups (last 3)\nconst recentBackups = backups\n  .sort((a, b) => new Date(b.metadata.creationTimestamp) - new Date(a.metadata.creationTimestamp))\n  .slice(0, 3);\nlet backupSection = '🔒 <b>Velero Backups (last 3):</b>\\n';\nif (recentBackups.length === 0) {\n  backupSection += '   ⚠️ No backups found';\n} else {\n  for (const bk of recentBackups) {\n    const phase = bk.status?.phase || 'Unknown';\n    const emoji = phase === 'Completed' ? '✅' : phase === 'Failed' ? '❌' : '⏳';\n    const name = bk.metadata.name;\n    const ts = new Date(bk.metadata.creationTimestamp).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });\n    backupSection += `   ${emoji} ${name} (${ts})\\n`;\n  }\n}\n\n// Final message\nconst clusterOk = nodesReady === nodes.length && problemPods.length === 0 && pvcsFail === 0;\nconst headerEmoji = clusterOk ? '✅' : '⚠️';\n\nlet message = `${headerEmoji} <b>DevOps Lab — Daily Report</b>\\n`;\nmessage += `📅 ${dateStr} ${timeStr} (Kyiv)\\n`;\nmessage += `\\n${nodesSection}\\n`;\nmessage += `\\n${podsSection}\\n`;\nmessage += `\\n${pvcsSection}\\n`;\nmessage += `\\n${backupSection}`;\nmessage += `\\n🔗 <a href=\"https://argocd.lab.local\">Argo CD</a> | <a href=\"https://grafana.lab.local\">Grafana</a> | <a href=\"https://kuma.lab.local\">Uptime Kuma</a>`;\n\nreturn [{ json: { message } }];"
+      },
+      "id": "ff06a7b8-c9d0-e1f2-3456-789abcdef012",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 370]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.N8N_TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "={{ $env.N8N_TELEGRAM_CHAT_ID }}" },
+            { "name": "text", "value": "={{ $json.message }}" },
+            { "name": "parse_mode", "value": "HTML" },
+            { "name": "disable_web_page_preview", "value": "true" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "07081920-2122-2324-2526-272829303132",
+      "name": "Send Report to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 370]
+    }
+  ],
+  "connections": {
+    "Daily at 09:00": {
+      "main": [[
+        { "node": "Get Nodes", "type": "main", "index": 0 },
+        { "node": "Get All Pods", "type": "main", "index": 0 },
+        { "node": "Get PVCs", "type": "main", "index": 0 },
+        { "node": "Get Backups", "type": "main", "index": 0 }
+      ]]
+    },
+    "Get Nodes": {
+      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+    },
+    "Get All Pods": {
+      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+    },
+    "Get PVCs": {
+      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+    },
+    "Get Backups": {
+      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+    },
+    "Build Report": {
+      "main": [[{ "node": "Send Report to Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

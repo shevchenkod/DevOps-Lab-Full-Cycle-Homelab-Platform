@@ -1,0 +1,58 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: promtail
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: promtail
+    targetRevision: "6.16.6"
+    helm:
+      releaseName: promtail
+      valuesObject:
+
+        # DaemonSet — runs on every node, reads /var/log/pods
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
+
+        config:
+          # Loki service address (in-cluster)
+          clients:
+            - url: http://loki.loki.svc.cluster.local:3100/loki/api/v1/push
+
+          # Positions — where Promtail saves log reading progress
+          positions:
+            filename: /run/promtail/positions.yaml
+
+          # Log sources: all pods via CRI
+          snippets:
+            pipelineStages:
+              - cri: {}
+
+        # Tolerations — run on master/control-plane nodes as well
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+            effect: NoSchedule
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loki
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

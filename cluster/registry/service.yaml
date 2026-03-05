@@ -1,0 +1,29 @@
+---
+# ClusterIP — used inside K8s pods (image pull)
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: registry
+spec:
+  selector:
+    app: registry
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP
+---
+# NodePort — used from master node to build & push images
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-nodeport
+  namespace: registry
+spec:
+  selector:
+    app: registry
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30500
+  type: NodePort

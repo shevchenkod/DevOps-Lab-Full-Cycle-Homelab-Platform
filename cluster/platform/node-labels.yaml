@@ -1,0 +1,19 @@
+# Node Zone Labels — Block J: AZ/Zone Topology
+# Zone A: pve01 (k8s-master-01, k8s-worker-01)
+# Zone B: pve02 (k8s-worker-02)
+#
+# Applied via: kubectl apply -f cluster/platform/node-labels.yaml
+# Or manually: kubectl label node <name> topology.kubernetes.io/zone=zone-a
+
+# NOTE: Kubernetes doesn't have a native "NodeLabel" CRD.
+# These labels are applied via Ansible or kubectl and documented here.
+# For GitOps persistence, labels are set in Ansible playbook (baseline task).
+
+# Current zone mapping:
+# k8s-master-01  → zone-a  (Proxmox node: pve01, IP: 10.44.81.110)
+# k8s-worker-01  → zone-a  (Proxmox node: pve01, IP: 10.44.81.111)
+# k8s-worker-02  → zone-b  (Proxmox node: pve02, IP: 10.44.81.112)
+
+# Labels applied:
+#   topology.kubernetes.io/zone=zone-a|zone-b
+#   topology.kubernetes.io/region=proxmox-lab

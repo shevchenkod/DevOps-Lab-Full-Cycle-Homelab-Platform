@@ -1,0 +1,88 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "*"
+    helm:
+      releaseName: kube-prometheus-stack
+      valuesObject:
+
+        grafana:
+          adminPassword: "DevOpsLab2026!"
+          # Loki datasource — logs from all cluster pods
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              url: http://loki.loki.svc.cluster.local:3100
+              access: proxy
+              isDefault: false
+              jsonData:
+                maxLines: 1000
+          persistence:
+            enabled: true
+            storageClassName: longhorn
+            size: 5Gi
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: lab-ca-issuer
+            hosts:
+              - grafana.lab.local
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.lab.local
+            path: /
+            pathType: Prefix
+
+        prometheus:
+          prometheusSpec:
+            retention: 7d
+            retentionSize: "4GB"
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+
+        alertmanager:
+          alertmanagerSpec:
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 2Gi
+
+        # Disable components not needed in lab
+        kubeEtcd:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

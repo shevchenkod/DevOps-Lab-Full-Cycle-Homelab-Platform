@@ -1,0 +1,13 @@
+# Full Strapi project (/srv/app) — includes node_modules, .tmp (SQLite), public/uploads
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: strapi-data
+  namespace: strapi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-single
+  resources:
+    requests:
+      storage: 3Gi

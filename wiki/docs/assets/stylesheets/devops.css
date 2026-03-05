@@ -1,0 +1,43 @@
+/* DevOps Lab — Custom Theme Colors */
+:root {
+  --md-primary-fg-color: #0D2137;
+  --md-primary-fg-color--light: #1a3a5c;
+  --md-primary-fg-color--dark: #080f1a;
+  --md-accent-fg-color: #30D5C8;
+  --md-accent-fg-color--transparent: rgba(48, 213, 200, 0.1);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0D2137;
+  --md-primary-bg-color: #0d1117;
+  --md-accent-fg-color: #30D5C8;
+  --md-default-bg-color: #0d1117;
+  --md-default-bg-color--light: #161b22;
+  --md-code-bg-color: #161b22;
+}
+
+/* Nav tab active */
+.md-tabs__link--active {
+  border-bottom: 2px solid #30D5C8;
+}
+
+/* Code blocks */
+.md-typeset pre > code {
+  border-left: 3px solid #30D5C8;
+}
+
+/* Admonition tip custom color */
+.md-typeset .admonition.tip {
+  border-color: #30D5C8;
+}
+
+/* Table header */
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: #ffffff;
+}
+
+/* Status badges */
+.status-done { color: #28C840; font-weight: bold; }
+.status-wip { color: #FEBC2E; font-weight: bold; }
+.status-todo { color: #888; }

@@ -1,0 +1,14 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: longhorn-snapshot-class
+  labels:
+    # Velero uses this label to find the right VolumeSnapshotClass for CSI backups
+    velero.io/csi-volumesnapshot-class: "true"
+driver: driver.longhorn.io
+deletionPolicy: Retain
+parameters:
+  # type: snap = Longhorn internal snapshot (snapshot data deleted with volume - NOT for DR!)
+  # type: bak = Longhorn backup to external storage (survives volume deletion - USE FOR DR)
+  # Requires: BackupTarget configured (longhorn-backup bucket in MinIO)
+  type: bak

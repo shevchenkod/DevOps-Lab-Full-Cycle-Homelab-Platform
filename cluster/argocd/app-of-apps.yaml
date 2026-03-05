@@ -1,0 +1,31 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Root application managing all child Application objects.
+    # App-of-Apps pattern: a single manifest instead of manual kubectl apply per service.
+    # To add a new service: create app-*.yaml in cluster/apps/ and git push.
+    # Argo CD will automatically discover and deploy the new Application.
+    argocd.argoproj.io/description: "Root Application — manages all child Applications via App-of-Apps pattern"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/shevchenkod/devops-lab.git
+    targetRevision: HEAD
+    path: cluster/apps   # All Application manifests (app-*.yaml) live here
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd    # Application CRDs are created in the argocd namespace
+
+  syncPolicy:
+    automated:
+      prune: true        # Delete Application if app-*.yaml is removed from git
+      selfHeal: true     # Restore if Application is manually modified
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,205 @@
+---
+- name: Baseline prepare all nodes (swap, sysctl, containerd, kube tools)
+  hosts: k3s_cluster
+  become: true
+  vars:
+    k8s_version: "1.30"
+  tasks:
+    - name: Disable swap now
+      ansible.builtin.command: swapoff -a
+      changed_when: false
+      failed_when: false
+
+    - name: Remove swap from /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^\s*([^#]\S+)\s+\S+\s+swap\s+.*$'
+        replace: '# \1 swap disabled by ansible'
+      failed_when: false
+
+    - name: Load kernel modules config
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+        mode: '0644'
+
+    - name: modprobe overlay
+      ansible.builtin.command: modprobe overlay
+      changed_when: false
+      failed_when: false
+
+    - name: modprobe br_netfilter
+      ansible.builtin.command: modprobe br_netfilter
+      changed_when: false
+      failed_when: false
+
+    - name: sysctl params for Kubernetes
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+        mode: '0644'
+
+    - name: Apply sysctl
+      ansible.builtin.command: sysctl --system
+      changed_when: false
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gpg
+          - apt-transport-https
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+
+    - name: Install containerd
+      ansible.builtin.apt:
+        name: containerd
+        state: present
+        update_cache: true
+
+    - name: Ensure containerd config directory
+      ansible.builtin.file:
+        path: /etc/containerd
+        state: directory
+        mode: '0755'
+
+    - name: Generate default containerd config
+      ansible.builtin.command: containerd config default
+      register: containerd_default
+      changed_when: false
+
+    - name: Write containerd config with SystemdCgroup=true
+      ansible.builtin.copy:
+        dest: /etc/containerd/config.toml
+        content: "{{ containerd_default.stdout | regex_replace('SystemdCgroup = false', 'SystemdCgroup = true') }}"
+        mode: '0644'
+
+    - name: Restart and enable containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+        enabled: true
+
+    - name: Create keyrings dir
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Kubernetes repo key
+      ansible.builtin.get_url:
+        url: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key"
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
+
+    - name: Add Kubernetes apt repo
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /
+        mode: '0644'
+
+    - name: Install kubelet kubeadm kubectl
+      ansible.builtin.apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: true
+
+    - name: Hold Kubernetes packages
+      ansible.builtin.command: apt-mark hold kubelet kubeadm kubectl
+      changed_when: false
+
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: true
+
+- name: Initialize control-plane (master)
+  hosts: k3s_master
+  become: true
+  vars:
+    pod_cidr: "192.168.0.0/16"
+    apiserver_advertise_address: "10.44.81.110"
+    kubeconfig_user: "ubuntu"
+    calico_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/calico.yaml"
+  tasks:
+    - name: Check if cluster already initialized
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      register: adminconf
+
+    - name: kubeadm init
+      ansible.builtin.command: >
+        kubeadm init
+        --apiserver-advertise-address={{ apiserver_advertise_address }}
+        --pod-network-cidr={{ pod_cidr }}
+      when: not adminconf.stat.exists
+
+    - name: Ensure .kube directory for ubuntu user
+      ansible.builtin.file:
+        path: "/home/{{ kubeconfig_user }}/.kube"
+        state: directory
+        owner: "{{ kubeconfig_user }}"
+        group: "{{ kubeconfig_user }}"
+        mode: '0700'
+
+    - name: Copy admin.conf to user kubeconfig
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ kubeconfig_user }}/.kube/config"
+        remote_src: true
+        owner: "{{ kubeconfig_user }}"
+        group: "{{ kubeconfig_user }}"
+        mode: '0600'
+
+    - name: Wait for API server
+      ansible.builtin.command: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: kubectl_nodes
+      retries: 30
+      delay: 5
+      until: kubectl_nodes.rc == 0
+      changed_when: false
+
+    - name: Install Calico CNI
+      ansible.builtin.command: kubectl apply -f "{{ calico_manifest_url }}"
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: calico_apply
+      changed_when: "'configured' in calico_apply.stdout or 'created' in calico_apply.stdout"
+      failed_when: calico_apply.rc != 0 and ('AlreadyExists' not in calico_apply.stderr)
+
+    - name: Generate join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_cmd
+      changed_when: false
+
+    - name: Set join command fact
+      ansible.builtin.set_fact:
+        kubeadm_join_command: "{{ join_cmd.stdout | trim }}"
+
+- name: Join workers
+  hosts: k3s_workers
+  become: true
+  tasks:
+    - name: Check if node already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubeletconf
+
+    - name: Join node to cluster
+      ansible.builtin.command: "{{ hostvars[groups['k3s_master'][0]].kubeadm_join_command }} --ignore-preflight-errors=all"
+      when: not kubeletconf.stat.exists

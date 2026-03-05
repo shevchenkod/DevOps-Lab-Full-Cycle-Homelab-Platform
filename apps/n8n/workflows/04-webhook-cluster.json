@@ -1,0 +1,129 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567804",
+  "name": "🔧 Webhook Cluster Actions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cluster-action",
+        "options": {}
+      },
+      "id": "11223344-5566-7788-99aa-bbccddeeff00",
+      "name": "Cluster Action Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "cluster-action"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst action = body.action || '';\nconst namespace = body.namespace || 'default';\nconst name = body.name || '';\nconst replicas = body.replicas || 1;\nconst allowed_actions = ['pod-status', 'deployment-status', 'restart', 'scale', 'namespace-summary'];\nif (!allowed_actions.includes(action)) {\n  return [{ json: { error: true, message: `Unknown action '${action}'. Allowed: ${allowed_actions.join(', ')}`, status: 400 }}];\n}\nreturn [{ json: { action, namespace, name, replicas } }];"
+      },
+      "id": "22334455-6677-8899-aabb-ccddeeff0011",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "is-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "33445566-7788-99aa-bbcc-ddeeff001122",
+      "name": "Is Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { error: $json.message, status: 400 } }];"
+      },
+      "id": "44556677-8899-aabb-ccdd-eeff00112233",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { action, namespace, name, replicas } = $json;\nconst base = $env.K8S_API_HOST;\nlet url = '', method = 'GET', body = null;\nswitch (action) {\n  case 'pod-status':\n    url = name ? `${base}/api/v1/namespaces/${namespace}/pods/${name}` : `${base}/api/v1/namespaces/${namespace}/pods`;\n    break;\n  case 'deployment-status':\n    url = name ? `${base}/apis/apps/v1/namespaces/${namespace}/deployments/${name}` : `${base}/apis/apps/v1/namespaces/${namespace}/deployments`;\n    break;\n  case 'restart':\n    url = `${base}/apis/apps/v1/namespaces/${namespace}/deployments/${name}`;\n    method = 'PATCH';\n    body = JSON.stringify({ spec: { template: { metadata: { annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() } } } } });\n    break;\n  case 'scale':\n    url = `${base}/apis/apps/v1/namespaces/${namespace}/deployments/${name}/scale`;\n    method = 'PATCH';\n    body = JSON.stringify({ spec: { replicas: parseInt(replicas) } });\n    break;\n  case 'namespace-summary':\n    url = `${base}/api/v1/namespaces/${namespace}/pods`;\n    break;\n}\nreturn [{ json: { url, method, body, action, namespace, name, replicas } }];"
+      },
+      "id": "55667788-99aa-bbcc-ddee-ff0011223344",
+      "name": "Build K8s Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 380]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "method": "={{ $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.K8S_API_TOKEN}}" },
+            { "name": "Content-Type", "value": "application/merge-patch+json" }
+          ]
+        },
+        "sendBody": "={{ $json.method !== 'GET' }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body ? JSON.parse($json.body) : {} }}",
+        "options": { "allowUnauthorizedCerts": true }
+      },
+      "id": "66778899-aabb-ccdd-eeff-001122334455",
+      "name": "Execute K8s Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const action = $('Build K8s Request').first().json.action;\nconst namespace = $('Build K8s Request').first().json.namespace;\nconst name = $('Build K8s Request').first().json.name;\nconst data = $input.first().json;\nlet result = {};\nswitch (action) {\n  case 'pod-status':\n    result = data.items\n      ? { action, namespace, pods: data.items.map(p => ({ name: p.metadata.name, phase: p.status.phase, restarts: (p.status.containerStatuses||[]).reduce((s,c)=>s+c.restartCount,0), node: p.spec.nodeName })) }\n      : { action, namespace, name, phase: data.status?.phase, restarts: (data.status?.containerStatuses||[]).reduce((s,c)=>s+c.restartCount,0) };\n    break;\n  case 'deployment-status':\n    result = data.items\n      ? { action, namespace, deployments: data.items.map(d => ({ name: d.metadata.name, ready: `${d.status.readyReplicas||0}/${d.spec.replicas}`, image: d.spec.template.spec.containers[0]?.image })) }\n      : { action, namespace, name, ready: `${data.status?.readyReplicas||0}/${data.spec?.replicas}`, image: data.spec?.template?.spec?.containers[0]?.image };\n    break;\n  case 'restart':\n    result = { action, namespace, name, status: 'restart_triggered', timestamp: new Date().toISOString() };\n    break;\n  case 'scale':\n    result = { action, namespace, name, replicas: $('Build K8s Request').first().json.replicas, status: 'scale_triggered' };\n    break;\n  default:\n    result = { action, namespace, data: data.items?.length || 'ok' };\n}\nreturn [{ json: result }];"
+      },
+      "id": "77889900-aabb-ccdd-eeff-112233445566",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 380]
+    }
+  ],
+  "connections": {
+    "Cluster Action Webhook": {
+      "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]]
+    },
+    "Validate Request": {
+      "main": [[{ "node": "Is Error?", "type": "main", "index": 0 }]]
+    },
+    "Is Error?": {
+      "main": [
+        [{ "node": "Format Error", "type": "main", "index": 0 }],
+        [{ "node": "Build K8s Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build K8s Request": {
+      "main": [[{ "node": "Execute K8s Action", "type": "main", "index": 0 }]]
+    },
+    "Execute K8s Action": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,25 @@
+﻿---
+# Argo CD Application: Grafana Dashboards
+# Deploys ConfigMaps with dashboards — sidecar picks them up automatically
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/shevchenkod/devops-lab.git
+    targetRevision: HEAD
+    path: cluster/dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
