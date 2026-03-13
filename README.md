@@ -447,7 +447,7 @@ kubectl rollout restart deployment/wiki -n wiki
   - **Node Exporter — Lab** (CPU/Memory/Disk/Network)
   - **Kubernetes Cluster — Lab** (Nodes/Pods/restarts/namespace resources)
   - **Loki Logs — Lab** (logs by namespace/pod, error rate)
-  - **Entra ID Security — Ciellos** (Azure Monitor → LAW: Gauge, Pie, Bar charts, Timeseries)
+  - **Entra ID Security — Ciellos** v4 (26 panels: Gauge x2/MFA%+LegacyAuth%, Pie/donut, Bar x4, Timeseries x2, Security Indicators section)
 
 ### Block F — GitOps + CI/CD (Argo CD + GitHub Actions + ARC)
 - ✅ Argo CD **v3.3.2** via Helm — `https://argocd.lab.local`
@@ -569,7 +569,7 @@ Documentation available in the repository at `wiki/docs/`:
 │   │   ├── dashboard-node-exporter.yaml   # CPU/Memory/Disk/Network
 │   │   ├── dashboard-k8s-cluster.yaml     # Nodes/Pods/NS resources
 │   │   ├── dashboard-loki-logs.yaml       # Logs/Errors via Loki
-│   │   └── dashboard-entra-id.yaml        # Entra ID Security (Azure Monitor: Gauge, Pie, Bar x4, Timeseries x2)
+│   │   └── dashboard-entra-id.yaml        # Entra ID Security v4 (Azure Monitor: Gauge x2, Pie x2, Bar x4, Timeseries x2, 26 panels)
 │   └── monitoring/
 │       ├── alertmanager-config.yaml       # AlertmanagerConfig (Telegram)
 │       └── prometheus-rules.yaml          # PrometheusRule: 6 custom alerts
@@ -711,4 +711,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Last updated: 13.03.2026 — Entra ID Security Dashboard (Azure Monitor, visual panels) ✅ | ArgoCD auto-sync fix (30s + pre-push hook) ✅ | 17 Argo CD Apps | Blocks A–J complete ✅ | 31 Lessons Learned in Wiki*
+*Last updated: 13.03.2026 — Entra ID Security Dashboard v4 (26 panels, Security Indicators, fix PowerShell heredoc $__timeFilter bug) ✅ | ArgoCD auto-sync fix (30s polling + pre-push hook) ✅ | 17 Argo CD Apps | Blocks A–J closed ✅ | 31 Lessons Learned in Wiki*
