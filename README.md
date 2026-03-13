@@ -711,4 +711,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Last updated: 13.03.2026 — Entra ID Security Dashboard v5 (40 panels: +Security Alerts, Auth Quality, User Insights, Weekly KPI Trends) ✅ | ArgoCD auto-sync fix (30s polling + pre-push hook) ✅ | 17 Argo CD Apps | Blocks A–J closed ✅ | 31 Lessons Learned in Wiki*
+*Last updated: 13.03.2026 — Entra ID Security Dashboard v5 fix: panels 70/71 simplified (FailedAttempts per User/IP, guaranteed data) ✅ | ArgoCD auto-sync fix (30s polling + pre-push hook) ✅ | 17 Argo CD Apps | Blocks A–J closed ✅ | 31 Lessons Learned in Wiki*
