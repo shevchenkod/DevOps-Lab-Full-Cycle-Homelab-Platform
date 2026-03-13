@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🏠 DevOps Full-Cycle Homelab Platform
 
@@ -443,7 +443,11 @@ kubectl rollout restart deployment/wiki -n wiki
 - ✅ Alertmanager: 6 PrometheusRules + Telegram notifications
 - ✅ **Loki v3.4.2** — singleBinary, namespace `loki`, PVC 10Gi
 - ✅ **Promtail v3.0.0** — DaemonSet 3/3 Running (all 3 nodes)
-- ✅ **3 Grafana dashboards** provisioned via GitOps ConfigMaps (Node Exporter / K8s Cluster / Loki Logs)
+- ✅ **4 Grafana dashboards** provisioned via GitOps ConfigMaps:
+  - **Node Exporter — Lab** (CPU/Memory/Disk/Network)
+  - **Kubernetes Cluster — Lab** (Nodes/Pods/restarts/namespace resources)
+  - **Loki Logs — Lab** (logs by namespace/pod, error rate)
+  - **Entra ID Security — Ciellos** (Azure Monitor → LAW: Gauge, Pie, Bar charts, Timeseries)
 
 ### Block F — GitOps + CI/CD (Argo CD + GitHub Actions + ARC)
 - ✅ Argo CD **v3.3.2** via Helm — `https://argocd.lab.local`
@@ -452,6 +456,7 @@ kubectl rollout restart deployment/wiki -n wiki
 - ✅ App-of-Apps pattern — single point of control for all services
 - ✅ **GitHub Actions + ARC v0.13.1** — `wiki-ci.yml` pipeline, scale-from-zero runners in K8s
 - ✅ **Sealed Secrets v2.18.3** — WordPress + N8N credentials encrypted in Git
+- ✅ **ArgoCD auto-sync fix** — `timeout.reconciliation: 30s` (was 180s) + `pre-push` git hook → hard refresh all apps after every `git push` ✅
 
 ### Block G — Applications
 - ✅ **WordPress 6.8.2** — Bitnami Helm 29.1.2 + Argo CD + Longhorn PVC + Ingress TLS
@@ -563,7 +568,8 @@ Documentation available in the repository at `wiki/docs/`:
 │   ├── dashboards/
 │   │   ├── dashboard-node-exporter.yaml   # CPU/Memory/Disk/Network
 │   │   ├── dashboard-k8s-cluster.yaml     # Nodes/Pods/NS resources
-│   │   └── dashboard-loki-logs.yaml       # Logs/Errors via Loki
+│   │   ├── dashboard-loki-logs.yaml       # Logs/Errors via Loki
+│   │   └── dashboard-entra-id.yaml        # Entra ID Security (Azure Monitor: Gauge, Pie, Bar x4, Timeseries x2)
 │   └── monitoring/
 │       ├── alertmanager-config.yaml       # AlertmanagerConfig (Telegram)
 │       └── prometheus-rules.yaml          # PrometheusRule: 6 custom alerts
@@ -705,4 +711,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Last updated: 01.01.2026 — N8N v2.10.2 ✅ | 17 Argo CD Apps | Blocks A–J complete ✅ | 31 Lessons Learned in Wiki*
+*Last updated: 13.03.2026 — Entra ID Security Dashboard (Azure Monitor, visual panels) ✅ | ArgoCD auto-sync fix (30s + pre-push hook) ✅ | 17 Argo CD Apps | Blocks A–J complete ✅ | 31 Lessons Learned in Wiki*
