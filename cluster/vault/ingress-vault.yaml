@@ -1,0 +1,45 @@
+---
+# Vault UI Ingress — vault.lab.local
+# TLS via cert-manager internal CA (lab-ca-issuer)
+# Vault API: https://vault.lab.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-ingress
+  namespace: vault
+  annotations:
+    # Vault uses long-polling for token renewal — increase timeouts
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Pass host header to Vault
+    nginx.ingress.kubernetes.io/proxy-set-headers: "vault/custom-headers"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - vault.lab.local
+      secretName: vault-tls
+  rules:
+    - host: vault.lab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vault
+                port:
+                  number: 8200
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-tls
+  namespace: vault
+spec:
+  secretName: vault-tls
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - vault.lab.local

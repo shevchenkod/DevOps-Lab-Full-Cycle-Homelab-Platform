@@ -1,0 +1,32 @@
+﻿## G. Applications: real-world services
+
+- [x] ✅ **Uptime Kuma** — Argo CD Application + Longhorn PVC + Ingress TLS — 01.01.2026
+  - Image: `louislam/uptime-kuma:2.1.3` | PVC: 1Gi (Longhorn) | Pod: `1/1 Running` ✅
+  - Ingress: `https://kuma.lab.local` (cert-manager lab CA) | TLS cert: Ready ✅
+  - Argo CD Application: `cluster/argocd/app-uptime-kuma.yaml` — Synced / Healthy ✅
+  - Fix: `configuration-snippet` annotation removed (disabled by ingress admin) — commit `4cce752`
+- [x] ✅ **Strapi v4.26.1** (headless CMS) — Argo CD + Longhorn + Ingress TLS — 01.01.2026
+  - Image: `node:18-alpine` | PVC: `strapi-data` 3Gi (longhorn-single, /srv/app)
+  - Ingress: `https://strapi.lab.local` (cert-manager lab CA) | TLS cert: Ready ✅
+  - Argo CD Application: `cluster/argocd/app-strapi.yaml` — Synced / Healthy ✅
+  - Bootstrap: initContainer — `npm install` + `NODE_ENV=production npm run build` (pre-build admin)
+  - Main: `npm run start` (production) | `public/uploads` + `.tmp` created before early-exit
+  - Deps: `react@^18`, `react-dom`, `react-router-dom@^5`, `styled-components@^5`
+  - Strapi secrets in K8s Secret `strapi-secrets` (base64, not in git)
+  - `/admin` HTTP 200 ✅ | Pod: `1/1 Running`, 0 restarts ✅
+- [x] ✅ **WordPress** — Bitnami Helm + Argo CD + Longhorn PVC + Ingress TLS — 01.01.2026
+  - [x] ✅ DB (MariaDB 11.8.3) + PVC 2Gi (Longhorn)
+  - [x] ✅ WordPress 6.8.2 + PVC 5Gi (Longhorn)
+  - [x] ✅ Ingress + TLS (`https://wordpress.lab.local`, cert-manager lab CA)
+  - [x] ✅ Argo CD Application — Healthy (chart 29.1.2 + bitnamilegacy debian images)
+  - [ ] Backup strategy (Velero / DB dump)
+- [x] ✅ **N8N v2.10.2** — Workflow automation, Argo CD GitOps — 01.01.2026
+  - [x] ✅ Namespace `n8n`, PVC `n8n-data` 5Gi Longhorn RWO
+  - [x] ✅ Deployment: `n8nio/n8n:2.10.2`, strategy: Recreate, port 5678
+  - [x] ✅ Env: `N8N_HOST=n8n.lab.local`, `DB_TYPE=sqlite`, `GENERIC_TIMEZONE=Europe/Kiev`
+  - [x] ✅ Sealed Secrets: `N8N_ENCRYPTION_KEY` + `N8N_USER_MANAGEMENT_JWT_SECRET`
+  - [x] ✅ Ingress: `https://n8n.lab.local`, cert-manager `lab-ca-issuer`, `proxy-body-size: 50m`
+  - [x] ✅ `cluster/apps/app-n8n.yaml` — Argo CD Application: Synced / Healthy ✅
+  - [x] ✅ Pod `1/1 Running` (k8s-worker-02), TLS cert Ready ✅
+  - [x] ✅ `10.44.81.200 n8n.lab.local` added to Windows hosts ✅
+- [ ] (Optional) MinIO, whoami, test APIs

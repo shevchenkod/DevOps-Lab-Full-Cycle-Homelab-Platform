@@ -1,0 +1,19 @@
+# Core MkDocs and Theme
+mkdocs>=1.6
+mkdocs-material>=9.7
+
+# Plugins
+mkdocs-exporter>=6.2
+mkdocs-awesome-nav>=3.2
+mkdocs-macros-plugin>=1.5
+mkdocs-git-revision-date-localized-plugin>=1.5
+mkdocs-glightbox>=0.5.2
+
+# Extensions
+pymdown-extensions>=10.17
+mdx-truly-sane-lists>=1.3
+
+# Image Processing (for social cards)
+pillow>=11.0
+cairosvg>=2.8
+

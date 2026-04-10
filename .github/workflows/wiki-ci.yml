@@ -1,0 +1,49 @@
+name: CI — Wiki Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wiki/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: 10.44.81.110:30500
+  IMAGE: wiki
+  MASTER_HOST: 10.44.81.110
+  MASTER_USER: ubuntu
+  BUILD_DIR: ~/wiki-build
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Wiki
+    runs-on: arc-runner-set
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MASTER_SSH_KEY }}" > ~/.ssh/devops-lab
+          chmod 600 ~/.ssh/devops-lab
+          ssh-keyscan -H ${{ env.MASTER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copy wiki to master
+        run: |
+          ssh -i ~/.ssh/devops-lab ${{ env.MASTER_USER }}@${{ env.MASTER_HOST }} "rm -rf ${{ env.BUILD_DIR }} && mkdir -p ${{ env.BUILD_DIR }}"
+          scp -i ~/.ssh/devops-lab -r wiki/. ${{ env.MASTER_USER }}@${{ env.MASTER_HOST }}:${{ env.BUILD_DIR }}/
+
+      - name: Build & push image on master
+        run: |
+          ssh -i ~/.ssh/devops-lab ${{ env.MASTER_USER }}@${{ env.MASTER_HOST }} "cd ${{ env.BUILD_DIR }} && sudo nerdctl --namespace k8s.io build -t ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest -t ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }} . && sudo nerdctl --namespace k8s.io push --insecure-registry ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest && sudo nerdctl --namespace k8s.io push --insecure-registry ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}"
+
+      - name: Deploy to Kubernetes
+        run: |
+          ssh -i ~/.ssh/devops-lab ${{ env.MASTER_USER }}@${{ env.MASTER_HOST }} "kubectl rollout restart deployment/${{ env.IMAGE }} -n ${{ env.IMAGE }} && kubectl rollout status deployment/${{ env.IMAGE }} -n ${{ env.IMAGE }} --timeout=120s"
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/devops-lab ${{ env.MASTER_USER }}@${{ env.MASTER_HOST }} "echo '=== Pods ===' && kubectl get pods -n ${{ env.IMAGE }}"
+          echo "=== Image tag: ${{ github.sha }} ==="

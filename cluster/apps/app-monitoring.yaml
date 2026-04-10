@@ -1,0 +1,137 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "82.13.1"
+    helm:
+      releaseName: kube-prometheus-stack
+      valuesObject:
+
+        grafana:
+          adminPassword: "DevOpsLab2026!"
+          # Inject Azure Monitor client secret from K8s Secret (created manually, NOT in git)
+          # kubectl create secret generic grafana-azure-monitor -n monitoring \
+          #   --from-literal=client-secret=<SECRET>
+          envValueFrom:
+            AZURE_MONITOR_CLIENT_SECRET:
+              secretKeyRef:
+                name: grafana-azure-monitor
+                key: client-secret
+
+          plugins:
+            - grafana-image-renderer
+
+          env:
+            GF_RENDERING_SERVER_URL: http://localhost:8081/render
+            GF_RENDERING_CALLBACK_URL: http://localhost:3000/
+            GF_LOG_FILTERS: rendering:debug
+
+          extraContainers: |
+            - name: grafana-image-renderer
+              image: grafana/grafana-image-renderer:latest
+              ports:
+                - name: renderer
+                  containerPort: 8081
+              env:
+                - name: ENABLE_METRICS
+                  value: "true"
+                - name: HTTP_HOST
+                  value: "0.0.0.0"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              url: http://loki.loki.svc.cluster.local:3100
+              access: proxy
+              isDefault: false
+              jsonData:
+                maxLines: 1000
+            - name: Azure Monitor
+              type: grafana-azure-monitor-datasource
+              access: proxy
+              isDefault: false
+              jsonData:
+                azureAuthType: clientsecret
+                cloudName: azuremonitor
+                tenantId: 46e85934-1fab-4533-a4ad-de92ce1fd81a
+                clientId: 667445f5-6822-43b9-bd6e-85458f469b85
+                subscriptionId: 8598943c-c4ae-4fae-be7a-c682e6419684
+                logAnalyticsDefaultWorkspace: ff53a023-d5dd-4721-9ab5-10a4124fe428
+              secureJsonData:
+                clientSecret: $__env{AZURE_MONITOR_CLIENT_SECRET}
+
+          persistence:
+            enabled: true
+            storageClassName: longhorn
+            size: 5Gi
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: lab-ca-issuer
+            hosts:
+              - grafana.lab.local
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.lab.local
+            path: /
+            pathType: Prefix
+
+        prometheus:
+          prometheusSpec:
+            retention: 7d
+            retentionSize: "4GB"
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+
+        alertmanager:
+          alertmanagerSpec:
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 2Gi
+
+        # Disable components not needed in lab
+        kubeEtcd:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

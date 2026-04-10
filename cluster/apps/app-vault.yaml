@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault
+    targetRevision: "0.29.1"
+    helm:
+      releaseName: vault
+      valuesObject:
+
+        global:
+          # TLS disabled — handled by ingress-nginx + cert-manager
+          tlsDisable: true
+
+        server:
+          standalone:
+            enabled: true
+            config: |
+              ui = true
+
+              listener "tcp" {
+                tls_disable = 1
+                address     = "[::]:8200"
+                cluster_address = "[::]:8201"
+              }
+
+              storage "raft" {
+                path    = "/vault/data"
+                node_id = "vault-0"
+              }
+
+              service_registration "kubernetes" {}
+
+          # Persistent storage on Longhorn
+          dataStorage:
+            enabled: true
+            size: 10Gi
+            storageClass: longhorn
+            accessMode: ReadWriteOnce
+
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+
+          # Liveness / readiness probes
+          readinessProbe:
+            enabled: true
+            path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+          livenessProbe:
+            enabled: true
+            path: "/v1/sys/health?standbyok=true"
+            initialDelaySeconds: 60
+
+        # Vault UI (accessible via ingress)
+        ui:
+          enabled: true
+          serviceType: ClusterIP
+          servicePort: 8200
+
+        # Vault Agent Injector — auto-inject secrets into pods via annotations
+        injector:
+          enabled: true
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 250m
+
+        # Vault CSI Provider (optional — for CSI secret mounts)
+        csi:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

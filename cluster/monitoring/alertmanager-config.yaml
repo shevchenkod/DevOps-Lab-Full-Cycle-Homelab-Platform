@@ -1,0 +1,47 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: telegram-config
+  namespace: monitoring
+  labels:
+    alertmanagerConfig: telegram
+spec:
+  route:
+    receiver: telegram
+    groupBy: ['alertname', 'namespace']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+    matchers:
+      - name: alertname
+        matchType: "!="
+        value: "Watchdog"
+    routes:
+      # Additional — N8N webhook (parallel with Telegram)
+      - receiver: n8n-webhook
+        continue: true   # continue routing to the main telegram-receiver
+        matchers:
+          - name: alertname
+            matchType: "!="
+            value: "Watchdog"
+  receivers:
+    - name: n8n-webhook
+      webhookConfigs:
+        - url: "http://n8n.n8n.svc.cluster.local:5678/webhook/alertmanager"
+          sendResolved: true
+    - name: telegram
+      telegramConfigs:
+        - botToken:
+            name: alertmanager-telegram-secret
+            key: bot-token
+          chatID: 236281826
+          parseMode: HTML
+          message: |-
+            {{ range .Alerts -}}
+            {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} <b>{{ .Labels.alertname }}</b>
+            📍 <b>Namespace:</b> {{ if .Labels.namespace }}{{ .Labels.namespace }}{{ else }}cluster{{ end }}
+            ⚠️ <b>Severity:</b> {{ if .Labels.severity }}{{ .Labels.severity }}{{ else }}unknown{{ end }}
+            {{ if .Annotations.summary }}💬 {{ .Annotations.summary }}{{ end }}
+            {{ if .Annotations.description }}📋 {{ .Annotations.description }}{{ end }}
+            {{ if .GeneratorURL }}🔗 <a href="{{ .GeneratorURL }}">Prometheus</a>{{ end }}
+            {{ end -}}

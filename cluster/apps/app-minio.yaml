@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: "5.4.0"
+    helm:
+      releaseName: minio
+      valuesObject:
+
+        mode: standalone
+
+        rootUser: "minioadmin"
+        rootPassword: "DevOpsLab2026!"
+
+        persistence:
+          enabled: true
+          storageClass: longhorn-single
+          size: 10Gi
+
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+
+        service:
+          type: ClusterIP
+          port: 9000
+
+        consoleService:
+          type: ClusterIP
+          port: 9001
+
+        # MinIO Console UI -- https://minio.lab.local
+        consoleIngress:
+          enabled: true
+          ingressClassName: nginx
+          annotations:
+            cert-manager.io/cluster-issuer: lab-ca-issuer
+            nginx.ingress.kubernetes.io/proxy-body-size: "0"
+            nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+            nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+            nginx.ingress.kubernetes.io/proxy-buffering: "off"
+            # WebSocket support for Logs tab in MinIO Console
+            nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+          hosts:
+            - minio.lab.local
+          tls:
+            - secretName: minio-console-tls
+              hosts:
+                - minio.lab.local
+
+        # -- Prometheus metrics ------------------------------------------
+        # Tell MinIO Console where Prometheus is (enables Advanced Metrics tab)
+        environment:
+          MINIO_PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+          # Must match the Prometheus job label (ServiceMonitor name = minio -> job=minio)
+          MINIO_PROMETHEUS_JOB_ID: "minio"
+
+        # ServiceMonitor is managed manually in cluster/minio/servicemonitor.yaml
+        metrics:
+          serviceMonitor:
+            enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: minio
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

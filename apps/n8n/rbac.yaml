@@ -1,0 +1,60 @@
+﻿---
+# ServiceAccount for N8N — used for access to the Kubernetes API
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: n8n
+  namespace: n8n
+
+---
+# Long-lived token for ServiceAccount (N8N workflows)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-k8s-token
+  namespace: n8n
+  annotations:
+    kubernetes.io/service-account.name: n8n
+type: kubernetes.io/service-account-token
+
+---
+# ClusterRole: read-only access to core cluster resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: n8n-cluster-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "pods/log", "namespaces", "persistentvolumeclaims",
+                "services", "endpoints", "events", "configmaps"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "persistentvolumes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheusrules", "alertmanagerconfigs", "podmonitors", "servicemonitors"]
+    verbs: ["get", "list"]
+  - apiGroups: ["velero.io"]
+    resources: ["backups", "schedules", "backupstoragelocations", "restores"]
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding: bind ClusterRole to ServiceAccount n8n
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: n8n-cluster-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: n8n-cluster-reader
+subjects:
+  - kind: ServiceAccount
+    name: n8n
+    namespace: n8n

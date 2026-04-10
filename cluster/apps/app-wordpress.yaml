@@ -1,0 +1,132 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wordpress
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: wordpress
+    targetRevision: "29.2.7"   # BSI chart + legacy debian images from docker.io/bitnamilegacy (without FIPS/Photon)
+    helm:
+      releaseName: wordpress
+      valuesObject:
+
+        wordpressUsername: admin
+        existingSecret: wordpress-credentials
+        wordpressEmail: admin@lab.local
+        wordpressBlogName: "DevOps Lab"
+
+        # Override image to bitnamilegacy (debian-12) — BSI/Photon images incompatible with non-FIPS Ubuntu kernel
+        # bitnami/wordpress removed from dockerhub, bitnamilegacy is the official Bitnami legacy repository
+        image:
+          registry: docker.io
+          repository: bitnamilegacy/wordpress
+          tag: 6.8.2-debian-12-r5
+
+        # Allow non-BSI images (bitnamilegacy does not pass BSI verification)
+        global:
+          security:
+            allowInsecureImages: true
+
+        service:
+          type: ClusterIP
+
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hostname: wordpress.lab.local
+          annotations:
+            cert-manager.io/cluster-issuer: lab-ca-issuer
+            nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+          tls: true
+          extraTls:
+            - hosts:
+                - wordpress.lab.local
+              secretName: wordpress-tls
+
+        persistence:
+          enabled: true
+          storageClass: longhorn
+          size: 5Gi
+
+        mariadb:
+          enabled: true
+          auth:
+            existingSecret: wordpress-credentials
+            forcePassword: false
+          image:
+            registry: docker.io
+            repository: bitnamilegacy/mariadb
+            tag: 11.8.3-debian-12-r0
+          primary:
+            persistence:
+              enabled: true
+              storageClass: longhorn
+              size: 2Gi
+
+        # Rolling Update strategy
+        # ⚠️ WordPress uses RWO PVC (ReadWriteOnce) — cannot be mounted by 2 pods simultaneously
+        # Therefore maxSurge: 0 — terminate old pod first, then start new one (brief gap ~10-30s)
+        # Zero-downtime alternative: RWX storage or Recreate strategy
+        updateStrategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 0        # do not create new pod until old one is removed (RWO PVC constraint)
+            maxUnavailable: 1  # terminate old pod → release PVC → start new one
+
+        # HPA disabled: RWO PVC does not support horizontal scaling
+        autoscaling:
+          enabled: false
+
+        # PDB — protection during drain / rolling update
+        pdb:
+          create: true
+          minAvailable: 1      # always at least 1 pod available
+
+        # Resources — requests + limits (required for HPA CPU%)
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wordpress
+
+  # Ignore StatefulSet drift (mariadb) — K8s 1.27+ auto-adds fields not present in Helm template:
+  #   - persistentVolumeClaimRetentionPolicy: Retain/Retain (1.27+ default)
+  #   - volumeClaimTemplates[0].spec.volumeMode: Filesystem (API-server default)
+  #   - volumeClaimTemplates[0].status: {phase: Pending}
+  #   - volumeClaimTemplates[0].apiVersion/kind/metadata.creationTimestamp: API-server normalization
+  #   - managedFieldsManagers: kube-controller-manager (SSA mode — exclude kcm-owned fields)
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: wordpress-mariadb
+      managedFieldsManagers:
+        - kube-controller-manager
+      jsonPointers:
+        - /status
+        - /spec/persistentVolumeClaimRetentionPolicy
+        - /spec/volumeClaimTemplates/0/spec/volumeMode
+        - /spec/volumeClaimTemplates/0/status
+        - /spec/volumeClaimTemplates/0/apiVersion
+        - /spec/volumeClaimTemplates/0/kind
+        - /spec/volumeClaimTemplates/0/metadata/creationTimestamp
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+

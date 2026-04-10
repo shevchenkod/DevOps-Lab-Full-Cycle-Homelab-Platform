@@ -1,0 +1,58 @@
+﻿# Terraform state — never commit
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
+# Kubernetes credentials
+kubeconfig*.yaml
+kubeconfig
+
+# Certificates & Keys
+*.crt
+*.key
+*.pem
+*.p12
+
+# SSH keys
+ssh/
+
+# Secrets and passwords
+*.secret
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp
+
+# MkDocs build output
+wiki/site/
+wiki/.cache/
+
+# VMware VM files (Proxmox VMs running locally in VMware)
+PROXMOX01/
+PROXMOX02/
+*.vmdk
+*.vmx
+*.vmxf
+*.vmsd
+*.nvram
+*.vmem
+*.scoreboard
+*.lck
+vmware.log
+
+# Temp files / debug (do not commit)
+tmp/
+check.txt
+*.ps1
+
+# Personal session notes (local only, not for GitHub)
+docs/chat.md
+docs/roadmap-tomorrow.md

@@ -1,0 +1,5 @@
+#!/bin/bash
+kubectl patch deployment metrics-server -n kube-system \
+  --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+echo "PATCHED: $?"
