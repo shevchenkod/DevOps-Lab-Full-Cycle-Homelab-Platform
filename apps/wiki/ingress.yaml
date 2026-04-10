@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wiki
+  namespace: wiki
+  annotations:
+    cert-manager.io/cluster-issuer: "lab-ca-issuer"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - wiki.lab.local
+      secretName: wiki-tls
+  rules:
+    - host: wiki.lab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wiki
+                port:
+                  number: 80

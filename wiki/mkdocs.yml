@@ -1,0 +1,133 @@
+site_name: DevOps Full-Cycle Homelab Platform
+site_url: https://wiki.lab.local
+site_description: A production-grade homelab platform covering the full DevOps lifecycle — from bare-metal to GitOps, Observability, Backup & DR.
+site_dir: site
+
+theme:
+  name: material
+  custom_dir: overrides
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Dark theme
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Light theme
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+  logo: assets/images/logo.svg
+  favicon: assets/images/logo.svg
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
+  - glightbox
+  - tags
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - def_list
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.betterem
+  - mdx_truly_sane_lists:
+      truly_sane: true
+      nested_indent: 2
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra_css:
+  - assets/stylesheets/custom.css
+  - assets/stylesheets/devops.css
+
+extra_javascript:
+  - assets/scripts/mkdocs-exporter.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/shevchenkod/DevOps-Lab-Full-Cycle-Homelab-Platform
+      name: DevOps Lab on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/shevchenkod
+      name: LinkedIn
+  generator: false
+
+nav:
+  - Home: index.md
+  - Roadmap:
+    - roadmap/index.md
+    - A. Foundations: roadmap/block-a.md
+    - B. IaaS (Proxmox + Terraform): roadmap/block-b.md
+    - C. Configuration (Ansible): roadmap/block-c.md
+    - D. Kubernetes Platform: roadmap/block-d.md
+    - E. Observability: roadmap/block-e.md
+    - F. Delivery (GitOps + CI/CD): roadmap/block-f.md
+    - G. Applications: roadmap/block-g.md
+    - H. Backup & DR: roadmap/block-h.md
+    - I. Operations: roadmap/block-i.md
+    - J. AZ/Zone Topology: roadmap/block-j.md
+  - Infrastructure:
+    - infrastructure/index.md
+    - Proxmox VE: infrastructure/proxmox.md
+    - Kubernetes Cluster: infrastructure/kubernetes.md
+    - Networking (MetalLB, Ingress): infrastructure/networking.md
+    - Storage (Longhorn): infrastructure/storage.md
+  - GitOps:
+    - gitops/index.md
+  - IaC:
+    - iac/index.md
+    - Terraform: iac/terraform.md
+    - Ansible: iac/ansible.md
+  - Observability:
+    - observability/index.md
+    - Prometheus: observability/prometheus.md
+    - Grafana: observability/grafana.md
+    - Loki + Promtail: observability/loki.md
+    - Alertmanager: observability/alertmanager.md
+  - Services:
+    - services/index.md
+    - WordPress: services/wordpress.md
+    - Strapi CMS: services/strapi.md
+    - Wiki (MkDocs): services/wiki.md
+    - Registry: services/registry.md
+    - MinIO: services/minio.md
+    - N8N Automation: services/n8n.md
+    - Uptime Kuma: services/uptime-kuma.md
+  - Backup & DR:
+    - backup/index.md
+  - Security:
+    - security/index.md
+  - Lessons Learned:
+    - lessons/index.md
+  - Runbooks:
+    - runbooks/index.md

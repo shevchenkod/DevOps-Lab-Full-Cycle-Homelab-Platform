@@ -1,0 +1,241 @@
+﻿{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567802",
+  "name": "🤖 Telegram Bot (Polling)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "* * * * *" }]
+        }
+      },
+      "id": "e5f6a7b8-c9d0-1234-efab-234567890123",
+      "name": "Every Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read/save offset via Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst offset = staticData.telegramOffset || 0;\nreturn [{ json: { offset } }];"
+      },
+      "id": "f6a7b8c9-d0e1-2345-fabc-345678901234",
+      "name": "Get Offset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.N8N_TELEGRAM_BOT_TOKEN }}/getUpdates",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "offset", "value": "={{ $json.offset }}" },
+            { "name": "timeout", "value": "0" },
+            { "name": "limit", "value": "10" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7b8c9d0-e1f2-3456-abcd-456789012345",
+      "name": "Telegram getUpdates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse updates — filter only messages for our chat_id\nconst data = $input.first().json;\nconst updates = data.result || [];\nconst allowedChatId = parseInt($env.N8N_TELEGRAM_CHAT_ID);\n\nif (updates.length === 0) return [];\n\n// Update offset\nconst staticData = $getWorkflowStaticData('global');\nconst lastUpdate = updates[updates.length - 1];\nstaticData.telegramOffset = lastUpdate.update_id + 1;\n\n// Filter and extract commands\nconst messages = [];\nfor (const upd of updates) {\n  const msg = upd.message || upd.edited_message;\n  if (!msg) continue;\n  if (msg.chat.id !== allowedChatId) continue;\n  \n  const text = (msg.text || '').trim();\n  const command = text.split(' ')[0].toLowerCase();\n  const args = text.split(' ').slice(1).join(' ');\n  \n  messages.push({ json: {\n    update_id: upd.update_id,\n    chat_id: msg.chat.id,\n    from: msg.from?.username || msg.from?.first_name || 'Unknown',\n    text,\n    command,\n    args\n  }});\n}\n\nreturn messages;"
+      },
+      "id": "b8c9d0e1-f2a3-4567-bcde-567890123456",
+      "name": "Parse Commands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "cmd-status",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/status",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-a3b4-5678-cdef-678901234567",
+      "name": "Is /status ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [1120, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "cmd-pods",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/pods",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "d0e1f2a3-b4c5-6789-defa-789012345678",
+      "name": "Is /pods ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [1120, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "cmd-help",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/help",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "e1f2a3b4-c5d6-7890-efab-890123456789",
+      "name": "Is /help ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [1120, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "const https = require('https');\nconst fs = require('fs');\nconst token = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token', 'utf8').trim();\nconst ca = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/ca.crt');\nconst result = await new Promise((resolve, reject) => {\n  const req = https.request({\n    hostname: 'kubernetes.default.svc.cluster.local',\n    port: 443,\n    path: '/api/v1/nodes',\n    method: 'GET',\n    headers: { 'Authorization': 'Bearer ' + token },\n    ca: ca\n  }, (res) => {\n    let data = '';\n    res.on('data', c => data += c);\n    res.on('end', () => resolve(JSON.parse(data)));\n  });\n  req.on('error', reject);\n  req.end();\n});\nreturn [{ json: result }];"
+      },
+      "id": "f2a3b4c5-d6e7-8901-fabc-901234567890",
+      "name": "K8s Get Nodes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const https = require('https');\nconst fs = require('fs');\nconst token = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token', 'utf8').trim();\nconst ca = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/ca.crt');\nconst result = await new Promise((resolve, reject) => {\n  const req = https.request({\n    hostname: 'kubernetes.default.svc.cluster.local',\n    port: 443,\n    path: '/api/v1/pods',\n    method: 'GET',\n    headers: { 'Authorization': 'Bearer ' + token },\n    ca: ca\n  }, (res) => {\n    let data = '';\n    res.on('data', c => data += c);\n    res.on('end', () => resolve(JSON.parse(data)));\n  });\n  req.on('error', reject);\n  req.end();\n});\nreturn [{ json: result }];"
+      },
+      "id": "a3b4c5d6-e7f8-9012-abcd-012345678901",
+      "name": "K8s Get All Pods",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format node status\nconst nodes = $input.first().json.items || [];\nlet msg = '🖥️ <b>Cluster Nodes</b>\\n\\n';\n\nfor (const node of nodes) {\n  const name = node.metadata.name;\n  const ready = node.status.conditions?.find(c => c.type === 'Ready');\n  const status = ready?.status === 'True' ? '✅' : '🔴';\n  const roles = Object.keys(node.metadata.labels || {})\n    .filter(k => k.startsWith('node-role.kubernetes.io/'))\n    .map(k => k.replace('node-role.kubernetes.io/', ''))\n    .join(', ') || 'worker';\n  const cpu = node.status.capacity?.cpu || '?';\n  const mem = node.status.capacity?.memory || '?';\n  const zone = node.metadata.labels?.['topology.kubernetes.io/zone'] || '?';\n  \n  msg += `${status} <code>${name}</code> [${roles}]\\n`;\n  msg += `   Zone: ${zone} | CPU: ${cpu} | Mem: ${parseInt(mem) > 0 ? Math.round(parseInt(mem)/1024/1024) + 'Gi' : mem}\\n`;\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
+      },
+      "id": "b4c5d6e7-f8a9-0123-bcde-123456789012",
+      "name": "Format Nodes Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format problem pods\nconst pods = $input.first().json.items || [];\nconst problemPods = pods.filter(p => {\n  const phase = p.status.phase;\n  if (phase === 'Running' || phase === 'Succeeded') {\n    // Check containers for restarts > 5\n    const containers = p.status.containerStatuses || [];\n    return containers.some(c => c.restartCount > 5);\n  }\n  return phase !== 'Running' && phase !== 'Succeeded';\n});\n\nlet msg = `📦 <b>Pod Status</b>\\n`;\nmsg += `Total: ${pods.length} pods | Issues: ${problemPods.length}\\n\\n`;\n\nif (problemPods.length === 0) {\n  msg += '✅ All pods healthy!';\n} else {\n  msg += '⚠️ <b>Problem Pods:</b>\\n';\n  for (const pod of problemPods.slice(0, 10)) {\n    const name = pod.metadata.name;\n    const ns = pod.metadata.namespace;\n    const phase = pod.status.phase;\n    const restarts = (pod.status.containerStatuses || []).reduce((sum, c) => sum + (c.restartCount || 0), 0);\n    msg += `🔴 <code>${ns}/${name}</code>\\n   Phase: ${phase} | Restarts: ${restarts}\\n`;\n  }\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
+      },
+      "id": "c5d6e7f8-a9b0-1234-cdef-234567890123",
+      "name": "Format Pods Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $input.first().json.chat_id;\nconst msg = `🤖 <b>DevOps Lab Bot</b>\\n\\nAvailable commands:\\n\\n/status — cluster node status\\n/pods — all pods status (problem pods highlighted)\\n/help — this help\\n\\n⚙️ Bot runs in polling mode. Requests are processed once per minute.`;\nreturn [{ json: { message: msg, chat_id: chatId } }];"
+      },
+      "id": "d6e7f8a9-b0c1-2345-defa-345678901234",
+      "name": "Help Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 540]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.N8N_TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "={{ $json.chat_id }}" },
+            { "name": "text", "value": "={{ $json.message }}" },
+            { "name": "parse_mode", "value": "HTML" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7f8a9b0-c1d2-3456-efab-456789012345",
+      "name": "Reply to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 360]
+    }
+  ],
+  "connections": {
+    "Every Minute": {
+      "main": [[{ "node": "Get Offset", "type": "main", "index": 0 }]]
+    },
+    "Get Offset": {
+      "main": [[{ "node": "Telegram getUpdates", "type": "main", "index": 0 }]]
+    },
+    "Telegram getUpdates": {
+      "main": [[{ "node": "Parse Commands", "type": "main", "index": 0 }]]
+    },
+    "Parse Commands": {
+      "main": [[
+        { "node": "Is /status ?", "type": "main", "index": 0 },
+        { "node": "Is /pods ?", "type": "main", "index": 0 },
+        { "node": "Is /help ?", "type": "main", "index": 0 }
+      ]]
+    },
+    "Is /status ?": {
+      "main": [[{ "node": "K8s Get Nodes", "type": "main", "index": 0 }]]
+    },
+    "Is /pods ?": {
+      "main": [[{ "node": "K8s Get All Pods", "type": "main", "index": 0 }]]
+    },
+    "Is /help ?": {
+      "main": [[{ "node": "Help Message", "type": "main", "index": 0 }]]
+    },
+    "K8s Get Nodes": {
+      "main": [[{ "node": "Format Nodes Status", "type": "main", "index": 0 }]]
+    },
+    "K8s Get All Pods": {
+      "main": [[{ "node": "Format Pods Status", "type": "main", "index": 0 }]]
+    },
+    "Format Nodes Status": {
+      "main": [[{ "node": "Reply to Telegram", "type": "main", "index": 0 }]]
+    },
+    "Format Pods Status": {
+      "main": [[{ "node": "Reply to Telegram", "type": "main", "index": 0 }]]
+    },
+    "Help Message": {
+      "main": [[{ "node": "Reply to Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

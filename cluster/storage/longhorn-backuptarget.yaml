@@ -1,0 +1,23 @@
+# Longhorn Backup Target - MinIO S3
+# Created after discovering that type: snap CSI snapshots are deleted with the source volume
+# and therefore cannot be used for DR (disaster recovery)
+#
+# Prerequisites:
+#   - MinIO bucket "longhorn-backup" must exist
+#   - Secret "longhorn-backup-secret" must be applied in longhorn-system namespace
+#
+# To apply the secret (contains credentials - consider using SealedSecrets in production):
+#   kubectl create secret generic longhorn-backup-secret -n longhorn-system \
+#     --from-literal=AWS_ACCESS_KEY_ID=minioadmin \
+#     --from-literal=AWS_SECRET_ACCESS_KEY='DevOpsLab2026!' \
+#     --from-literal=AWS_ENDPOINTS=http://minio.minio.svc.cluster.local:9000 \
+#     --from-literal=VIRTUAL_HOSTED_STYLE=false
+apiVersion: longhorn.io/v1beta2
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  backupTargetURL: "s3://longhorn-backup@us-east-1/"
+  credentialSecret: "longhorn-backup-secret"
+  pollInterval: "5m0s"

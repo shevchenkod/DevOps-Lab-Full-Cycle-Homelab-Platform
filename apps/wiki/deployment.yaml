@@ -1,0 +1,45 @@
+# Wiki — MkDocs Material static site served by nginx
+# Image built locally and pushed to in-cluster registry (registry:5000)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wiki
+  namespace: wiki
+  labels:
+    app: wiki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wiki
+  template:
+    metadata:
+      labels:
+        app: wiki
+    spec:
+      containers:
+        - name: wiki
+          # NodePort of in-cluster registry — accessible by all K8s nodes
+          image: 10.44.81.110:30500/wiki:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 30

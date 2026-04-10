@@ -1,0 +1,99 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: "6.55.0"
+    helm:
+      releaseName: loki
+      valuesObject:
+
+        # Mode: single pod (singleBinary) — sufficient for lab
+        deploymentMode: SingleBinary
+
+        loki:
+          # Lab — authentication not required
+          auth_enabled: false
+
+          commonConfig:
+            replication_factor: 1
+
+          # Log storage on local filesystem (PVC)
+          storage:
+            type: filesystem
+
+          # Storage schema (Loki 3.x — tsdb + v13)
+          schemaConfig:
+            configs:
+              - from: "2024-01-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: loki_index_
+                  period: 24h
+
+        singleBinary:
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          persistence:
+            enabled: true
+            size: 10Gi
+            storageClass: longhorn-single
+
+        # Disable scalable components (not needed for singleBinary)
+        backend:
+          replicas: 0
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+
+        # Disable caches (conserve memory in lab)
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+
+        # Disable built-in MinIO — using Longhorn filesystem
+        minio:
+          enabled: false
+
+        # Disable self-monitoring (requires Grafana Agent)
+        monitoring:
+          selfMonitoring:
+            enabled: false
+            grafanaAgent:
+              installOperator: false
+          lokiCanary:
+            enabled: false
+
+        # Disable test Pods
+        test:
+          enabled: false
+
+        # Gateway (nginx) not needed — Promtail writes directly to Loki service
+        gateway:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loki
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

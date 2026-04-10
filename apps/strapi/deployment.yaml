@@ -1,0 +1,286 @@
+apiVersion: apps/v1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strapi
+  namespace: strapi
+  labels:
+    app: strapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: strapi
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: strapi
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: strapi-init
+          image: node:18-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "[strapi-init] Checking PVC for Strapi v4..."
+
+              # Always ensure required directories exist
+              mkdir -p /srv/app/public/uploads /srv/app/.tmp
+
+              # Step 1: Cleanup v5 artifacts if present
+              if [ -f /srv/app/package.json ] && grep -q '"@strapi/strapi": "5' /srv/app/package.json 2>/dev/null; then
+                echo "[strapi-init] Removing Strapi v5 artifacts..."
+                rm -rf /srv/app/node_modules /srv/app/package-lock.json /srv/app/package.json
+              fi
+
+              # Step 2: If react missing from node_modules - wipe and reinstall
+              if [ -d /srv/app/node_modules ] && [ ! -d /srv/app/node_modules/react ]; then
+                echo "[strapi-init] react missing from node_modules, wiping for fresh install..."
+                rm -rf /srv/app/node_modules /srv/app/package-lock.json
+              fi
+
+              # Step 3: If admin already pre-built and deps complete - skip
+              if [ -f /srv/app/package.json ] && [ -d /srv/app/node_modules/react ] && [ -d /srv/app/build ]; then
+                echo "[strapi-init] Strapi v4 fully bootstrapped. Skipping init."
+                exit 0
+              fi
+
+              # Step 4: Create project structure
+              mkdir -p /srv/app/config /srv/app/src/api /srv/app/src/extensions /srv/app/public
+
+              cat > /srv/app/package.json << 'PKGJSON'
+              {
+                "name": "strapi-lab",
+                "private": true,
+                "version": "0.0.0",
+                "scripts": {
+                  "develop": "strapi develop",
+                  "start": "strapi start",
+                  "build": "strapi build",
+                  "strapi": "strapi"
+                },
+                "dependencies": {
+                  "@strapi/strapi": "4.26.1",
+                  "@strapi/plugin-users-permissions": "4.26.1",
+                  "@strapi/plugin-i18n": "4.25.23",
+                  "better-sqlite3": "^8.0.0",
+                  "react": "^18.0.0",
+                  "react-dom": "^18.0.0",
+                  "react-router-dom": "^5.2.0",
+                  "styled-components": "^5.2.1"
+                },
+                "engines": {
+                  "node": ">=16.0.0 <=20.x.x",
+                  "npm": ">=6.0.0"
+                }
+              }
+              PKGJSON
+
+              cat > /srv/app/config/database.js << 'DBCONF'
+              'use strict';
+              module.exports = ({ env }) => ({
+                connection: {
+                  client: 'sqlite',
+                  connection: { filename: env('DATABASE_FILENAME', '.tmp/data.db') },
+                  useNullAsDefault: true,
+                },
+              });
+              DBCONF
+
+              cat > /srv/app/config/server.js << 'SRVCONF'
+              'use strict';
+              module.exports = ({ env }) => ({
+                host: env('HOST', '0.0.0.0'),
+                port: env.int('PORT', 1337),
+                app: { keys: env.array('APP_KEYS') },
+              });
+              SRVCONF
+
+              cat > /srv/app/config/admin.js << 'ADMCONF'
+              'use strict';
+              module.exports = ({ env }) => ({
+                auth: { secret: env('ADMIN_JWT_SECRET') },
+                apiToken: { salt: env('API_TOKEN_SALT') },
+                transfer: { token: { salt: env('TRANSFER_TOKEN_SALT') } },
+              });
+              ADMCONF
+
+              cat > /srv/app/config/middlewares.js << 'MWCONF'
+              'use strict';
+              module.exports = [
+                'strapi::errors',
+                'strapi::security',
+                'strapi::cors',
+                'strapi::poweredBy',
+                'strapi::logger',
+                'strapi::query',
+                'strapi::body',
+                'strapi::session',
+                'strapi::favicon',
+                'strapi::public',
+              ];
+              MWCONF
+
+              cat > /srv/app/config/plugins.js << 'PLGCONF'
+              'use strict';
+              module.exports = ({ env }) => ({
+                'users-permissions': {
+                  config: { jwtSecret: env('JWT_SECRET') },
+                },
+              });
+              PLGCONF
+
+              cat > /srv/app/src/index.js << 'SRCIDX'
+              'use strict';
+              module.exports = {
+                register() {},
+                bootstrap() {},
+              };
+              SRCIDX
+
+              mkdir -p /srv/app/public/uploads
+              touch /srv/app/public/.gitkeep
+              echo "[strapi-init] Project files written."
+
+              # Step 5: Install dependencies
+              if [ ! -d /srv/app/node_modules ]; then
+                echo "[strapi-init] Installing build tools..."
+                apk add --no-cache python3 make g++ 2>/dev/null || true
+                echo "[strapi-init] Running npm install (5-10 min first run)..."
+                cd /srv/app && npm install --no-audit --no-fund
+                echo "[strapi-init] npm install complete."
+              fi
+
+              # Step 6: Pre-build admin panel to avoid interactive prompt in main container
+              if [ ! -d /srv/app/build ]; then
+                echo "[strapi-init] Pre-building admin panel (1-2 min)..."
+                cd /srv/app && NODE_ENV=production npm run build
+                echo "[strapi-init] Admin panel build complete."
+              fi
+
+              echo "[strapi-init] Bootstrap complete."
+          env:
+            - name: ADMIN_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: admin_jwt_secret
+            - name: API_TOKEN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: api_token_salt
+            - name: TRANSFER_TOKEN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: transfer_token_salt
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: jwt_secret
+            - name: APP_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: app_keys
+            - name: STRAPI_TELEMETRY_DISABLED
+              value: "true"
+          volumeMounts:
+            - name: strapi-data
+              mountPath: /srv/app
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1.5Gi"
+            limits:
+              cpu: "2"
+              memory: "2.5Gi"
+
+      containers:
+        - name: strapi
+          image: node:18-alpine
+          command: ["/bin/sh", "-c"]
+          args: ["cd /srv/app && npm run start"]
+          ports:
+            - containerPort: 1337
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "1337"
+            - name: DATABASE_CLIENT
+              value: "sqlite"
+            - name: DATABASE_FILENAME
+              value: ".tmp/data.db"
+            - name: STRAPI_TELEMETRY_DISABLED
+              value: "true"
+            - name: APP_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: app_keys
+            - name: API_TOKEN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: api_token_salt
+            - name: ADMIN_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: admin_jwt_secret
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: jwt_secret
+            - name: TRANSFER_TOKEN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: strapi-secrets
+                  key: transfer_token_salt
+          volumeMounts:
+            - name: strapi-data
+              mountPath: /srv/app
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /admin
+              port: 1337
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 25
+          livenessProbe:
+            httpGet:
+              path: /admin
+              port: 1337
+            initialDelaySeconds: 240
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+
+      volumes:
+        - name: strapi-data
+          persistentVolumeClaim:
+            claimName: strapi-data
+
+
+
+
+

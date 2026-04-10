@@ -1,0 +1,5 @@
+server = "http://10.44.81.110:30500"
+
+[host."http://10.44.81.110:30500"]
+  capabilities = ["pull", "resolve", "push"]
+  skip_verify = true

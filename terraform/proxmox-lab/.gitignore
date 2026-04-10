@@ -1,0 +1,17 @@
+﻿# Secrets and local variables — never commit to Git
+env/*.tfvars
+*.tfvars
+.env
+
+# Terraform state — local or remote backend
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Logs
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

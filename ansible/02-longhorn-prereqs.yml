@@ -1,0 +1,29 @@
+---
+- name: Install Longhorn prerequisites
+  hosts: k3s_cluster
+  become: true
+  tasks:
+    - name: Install open-iscsi and multipath-tools
+      apt:
+        name:
+          - open-iscsi
+          - multipath-tools
+        state: present
+        update_cache: true
+
+    - name: Enable and start iscsid
+      systemd:
+        name: iscsid
+        enabled: true
+        state: started
+
+    - name: Ensure iscsi_tcp kernel module is loaded
+      modprobe:
+        name: iscsi_tcp
+        state: present
+
+    - name: Persist iscsi_tcp module on boot
+      lineinfile:
+        path: /etc/modules-load.d/iscsi.conf
+        line: iscsi_tcp
+        create: true
