@@ -119,7 +119,7 @@ spec:
                     requests:
                       storage: 2Gi
 
-        # Disable components not needed in lab
+        # Отключаем компоненты которые не нужны в lab
         kubeEtcd:
           enabled: false
         kubeControllerManager:

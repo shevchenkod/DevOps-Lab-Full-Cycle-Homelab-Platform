@@ -1,4 +1,4 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: uptime-kuma
@@ -11,7 +11,7 @@ spec:
     matchLabels:
       app: uptime-kuma
   strategy:
-    type: Recreate   # SQLite — only one pod can write at a time
+    type: Recreate   # SQLite — только один pod может писать одновременно
   template:
     metadata:
       labels:

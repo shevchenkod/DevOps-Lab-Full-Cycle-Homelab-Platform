@@ -36,8 +36,6 @@ spec:
                 node_id = "vault-0"
               }
 
-              service_registration "kubernetes" {}
-
           # Persistent storage on Longhorn
           dataStorage:
             enabled: true
@@ -59,7 +57,8 @@ spec:
             path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
           livenessProbe:
             enabled: true
-            path: "/v1/sys/health?standbyok=true"
+            path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+            initialDelaySeconds: 60
             initialDelaySeconds: 60
 
         # Vault UI (accessible via ingress)

@@ -1,6 +1,6 @@
 ---
 # Grafana Dashboard: Loki Logs Explorer — Lab
-# Shows logs by namespace via Loki datasource + LogQL
+# Показывает логи по namespace через Loki datasource + LogQL
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,7 +13,7 @@ data:
   loki-logs.json: |
     {
       "annotations": { "list": [] },
-      "description": "Loki Log Explorer — filter by namespace, pod, level; error search",
+      "description": "Loki Log Explorer — фильтр по namespace, pod, уровню; поиск ошибок",
       "editable": true,
       "graphTooltip": 1,
       "id": null,

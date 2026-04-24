@@ -17,7 +17,7 @@ spec:
         matchType: "!="
         value: "Watchdog"
     routes:
-      # Additional — N8N webhook (parallel with Telegram)
+      # Also route to N8N webhook (parallel with Telegram)
       - receiver: n8n-webhook
         continue: true   # continue routing to the main telegram-receiver
         matchers:
@@ -34,7 +34,7 @@ spec:
         - botToken:
             name: alertmanager-telegram-secret
             key: bot-token
-          chatID: 236281826
+          chatID: 0  # Replace with your Telegram chat ID (get it from @userinfobot)
           parseMode: HTML
           message: |-
             {{ range .Alerts -}}

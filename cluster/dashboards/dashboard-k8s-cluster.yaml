@@ -1,6 +1,6 @@
 ---
 # Grafana Dashboard: Kubernetes Cluster Overview
-# Shows: nodes, pods, deployments, PVC, namespaces, resource requests/limits
+# Показывает: nodes, pods, deployments, PVC, namespaces, resource requests/limits
 apiVersion: v1
 kind: ConfigMap
 metadata:

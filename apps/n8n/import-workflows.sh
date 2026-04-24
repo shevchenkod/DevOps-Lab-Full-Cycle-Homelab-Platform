@@ -1,12 +1,12 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # =============================================================================
 # N8N Workflow Importer
-# Imports all JSON workflow files into N8N via REST API
+# Импортирует все JSON-файлы в N8N через REST API
 #
-# Usage:
+# Использование:
 #   ./import-workflows.sh <N8N_API_KEY>
 #
-# Create API key: N8N UI → Settings → API → Create API Key
+# API ключ создать в N8N UI: Settings → API → Create API Key
 # =============================================================================
 
 set -euo pipefail
@@ -26,7 +26,7 @@ echo "=== N8N Workflow Import ==="
 echo "Target: $N8N_URL"
 echo ""
 
-# Function to import a single workflow
+# Функция импорта одного workflow
 import_workflow() {
   local file="$1"
   local name
@@ -56,7 +56,7 @@ import_workflow() {
   fi
 }
 
-# Import all workflows in order
+# Импортируем все workflows по порядку
 for wf_file in "$SCRIPT_DIR"/0*.json; do
   if [[ -f "$wf_file" ]]; then
     import_workflow "$wf_file"

@@ -1,6 +1,6 @@
 ---
 # Argo CD Application: Grafana Dashboards
-# Deploys dashboard ConfigMaps — sidecar picks them up automatically
+# Деплоит ConfigMap-ы с дашбордами — sidecar их автоматически подхватывает
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

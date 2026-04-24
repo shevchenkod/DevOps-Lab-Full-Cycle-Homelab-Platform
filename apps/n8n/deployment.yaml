@@ -11,7 +11,7 @@ spec:
     matchLabels:
       app: n8n
   strategy:
-    type: Recreate   # SQLite — only one pod writes to PVC
+    type: Recreate   # SQLite — only one pod writes to PVC at a time
   template:
     metadata:
       labels:
@@ -55,14 +55,14 @@ spec:
                 secretKeyRef:
                   name: n8n-secret
                   key: N8N_USER_MANAGEMENT_JWT_SECRET
-            # Telegram Bot — for N8N workflows
+            # Telegram Bot — used by workflow nodes
             - name: N8N_TELEGRAM_BOT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: n8n-telegram-secret
                   key: TELEGRAM_BOT_TOKEN
             - name: N8N_TELEGRAM_CHAT_ID
-              value: "236281826"
+              value: "0"  # Replace with your Telegram chat ID (get it from @userinfobot)
             # Kubernetes API — Bearer token for HTTP Request nodes
             - name: K8S_API_TOKEN
               valueFrom:

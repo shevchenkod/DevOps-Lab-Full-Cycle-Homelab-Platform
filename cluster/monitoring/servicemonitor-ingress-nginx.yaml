@@ -1,4 +1,4 @@
-# ServiceMonitor — scrapes NGINX Ingress metrics into Prometheus
+# ServiceMonitor — scrapt NGINX Ingress metrics в Prometheus
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

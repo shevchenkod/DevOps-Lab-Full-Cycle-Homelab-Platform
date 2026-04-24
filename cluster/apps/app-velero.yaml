@@ -15,8 +15,8 @@ spec:
       releaseName: velero
       valuesObject:
 
-        # Plugin for S3/MinIO (AWS-compatible)
-        # velero-plugin-for-aws v1.13.x is compatible with Velero v1.17.x
+        # Плагин для S3/MinIO (AWS-compatible)
+        # velero-plugin-for-aws v1.13.x совместим с Velero v1.17.x
         initContainers:
           - name: velero-plugin-for-aws
             image: velero/velero-plugin-for-aws:v1.13.1
@@ -25,8 +25,8 @@ spec:
               - mountPath: /target
                 name: plugins
 
-        # Disable volume snapshots — use only FSB (kopia/restic)
-        # Without this, helm chart creates VolumeSnapshotLocation with provider=null → CRD validation error
+        # Отключаем volume snapshots — используем только FSB (kopia/restic)
+        # Без этого helm chart создаёт VolumeSnapshotLocation с provider=null → ошибка CRD валидации
         snapshotsEnabled: false
 
         # Backup Storage Location → MinIO (in-cluster, namespace minio)
@@ -41,7 +41,7 @@ spec:
                 region: minio
                 s3ForcePathStyle: "true"
                 s3Url: "http://minio.minio.svc.cluster.local:9000"
-                # checksumAlgorithm="" — required for MinIO + plugin v1.13.x
+                # checksumAlgorithm="" — обязательно для MinIO + plugin v1.13.x
                 checksumAlgorithm: ""
 
         # MinIO credentials (rootUser / rootPassword)
@@ -53,7 +53,7 @@ spec:
               aws_access_key_id = minioadmin
               aws_secret_access_key = DevOpsLab2026!
 
-        # Node Agent (kopia) — for file-based PVC volume backups
+        # Node Agent (kopia) — для файловых бэкапов PVC-томов
         deployNodeAgent: true
 
         nodeAgent:
@@ -75,10 +75,10 @@ spec:
             cpu: 500m
             memory: 512Mi
 
-        # Backup schedules
+        # Расписания бэкапов
         schedules:
 
-          # WordPress — every day at 02:00 UTC, TTL 30 days
+          # WordPress — каждый день в 02:00 UTC, TTL 30 дней
           wordpress-daily:
             disabled: false
             schedule: "0 2 * * *"
@@ -90,7 +90,7 @@ spec:
               defaultVolumesToFsBackup: true
               storageLocation: default
 
-          # Uptime Kuma — every day at 03:00 UTC, TTL 30 days
+          # Uptime Kuma — каждый день в 03:00 UTC, TTL 30 дней
           uptime-kuma-daily:
             disabled: false
             schedule: "0 3 * * *"
@@ -106,7 +106,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: velero
 
-  # Ignore BSL status fields — persistent runtime status drift
+  # Игнорируем статусные поля BSL — постоянный drift runtime-статуса
   ignoreDifferences:
     - group: velero.io
       kind: BackupStorageLocation

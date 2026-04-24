@@ -6,7 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-single   # same SC as loki/minio in the lab
+  storageClassName: longhorn-single   # 1 replica — will schedule on worker-02 (has 32GB free)
   resources:
     requests:
-      storage: 20Gi
+      storage: 5Gi
