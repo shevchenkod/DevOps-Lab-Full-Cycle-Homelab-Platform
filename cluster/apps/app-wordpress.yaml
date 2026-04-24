@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: wordpress
-    targetRevision: "29.2.7"   # BSI chart + legacy debian images из docker.io/bitnamilegacy (без FIPS/Photon)
+    targetRevision: "30.0.13"  # BSI chart + legacy debian images из docker.io/bitnamilegacy (без FIPS/Photon)
     helm:
       releaseName: wordpress
       valuesObject:
