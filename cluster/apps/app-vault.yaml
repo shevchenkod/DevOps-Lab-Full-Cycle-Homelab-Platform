@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://helm.releases.hashicorp.com
     chart: vault
-    targetRevision: "0.29.1"
+    targetRevision: "0.32.0"
     helm:
       releaseName: vault
       valuesObject:
@@ -58,7 +58,6 @@ spec:
           livenessProbe:
             enabled: true
             path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
-            initialDelaySeconds: 60
             initialDelaySeconds: 60
 
         # Vault UI (accessible via ingress)
