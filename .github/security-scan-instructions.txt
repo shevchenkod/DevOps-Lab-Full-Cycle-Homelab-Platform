@@ -1,0 +1,56 @@
+# Custom Security Scan Instructions — DevOps Lab
+# These instructions are appended to the default Claude security audit prompt.
+# Focus on infrastructure-as-code and GitOps-specific security concerns.
+
+## Project Context
+This is a production-grade Kubernetes homelab using GitOps (ArgoCD).
+Stack: Proxmox VE, Kubernetes v1.31, ArgoCD, Helm, Longhorn, Sealed Secrets, Velero.
+
+## HIGH PRIORITY — Flag these immediately:
+
+### Secrets & Credentials
+- Any hardcoded passwords, tokens, API keys, or secrets (even test/example values)
+- Plain Kubernetes Secret manifests (kind: Secret) — must use SealedSecret instead
+- Any base64-encoded values in YAML that look like credentials
+- SSH private keys or certificate private keys committed to repo
+
+### Kubernetes Security
+- Containers with `privileged: true` or `allowPrivilegeEscalation: true`
+- `hostNetwork: true` or `hostPID: true` without documented justification
+- RunAsRoot (missing `runAsNonRoot: true` on production workloads)
+- Missing resource limits (CPU/memory) on production pods
+- `kubectl apply` commands in scripts (violates GitOps principle — should go through ArgoCD)
+
+### Network & Access
+- Services of type `LoadBalancer` or `NodePort` exposing sensitive internal services
+- Ingress rules without TLS configured
+- Overly permissive RBAC (ClusterAdmin bindings, wildcards in rules)
+- `imagePullPolicy: Always` pointing to external registries in production
+
+### Infrastructure Code
+- Terraform state files committed (*.tfstate)
+- Ansible vault variables stored in plaintext
+- SSH config with `StrictHostKeyChecking no` without documented justification
+- IP addresses or internal hostnames that should be variables
+
+## MEDIUM PRIORITY:
+
+- Docker images using `latest` tag in production manifests
+- Missing `readinessProbe` or `livenessProbe` on production deployments
+- Helm charts pulling from untrusted/unverified sources
+- Missing network policies for sensitive namespaces
+- PersistentVolume access modes that are overly permissive
+
+## LOW PRIORITY / INFORMATIONAL:
+
+- Deployment strategies using RollingUpdate without maxUnavailable/maxSurge set
+- Missing pod disruption budgets for critical services
+- Outdated API versions (deprecated Kubernetes APIs)
+
+## FALSE POSITIVE GUIDANCE:
+- Internal lab IPs (10.44.81.x range) are expected and not a security issue
+- Self-signed certificates for *.lab.local are intentional (internal CA)
+- registry: 10.44.81.110:30500 is the internal container registry — expected
+- Longhorn and monitoring namespaces intentionally have elevated privileges
+- `--insecure-registry` for the internal registry (10.44.81.110:30500) is expected
+- `SkipCertificateCheck` in PowerShell scripts for lab.local endpoints is expected

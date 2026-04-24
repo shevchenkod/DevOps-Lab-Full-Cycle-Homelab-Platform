@@ -1,7 +1,7 @@
 ---
 # Grafana Dashboard: Trivy Operator — Security Vulnerabilities
-# Shows: CVE by severity, vulnerable images, config audit, exposed secrets
-# Data source: Trivy Operator /metrics endpoint (ServiceMonitor enabled)
+# Показывает: CVE по severity, уязвимые образы, config audit, exposed secrets
+# Данные из: Trivy Operator /metrics endpoint (ServiceMonitor enabled)
 apiVersion: v1
 kind: ConfigMap
 metadata:

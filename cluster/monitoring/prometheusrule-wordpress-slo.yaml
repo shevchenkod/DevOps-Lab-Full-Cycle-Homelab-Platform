@@ -1,16 +1,16 @@
-# PrometheusRule — WordPress SLO via NGINX Ingress metrics
+# PrometheusRule — SLO для WordPress через NGINX Ingress метрики
 #
-# SLI definitions:
-#   Availability SLI = fraction of requests WITHOUT HTTP 5xx (target: 99.5% over 30 days)
-#   Latency SLI      = fraction of requests with latency < 500ms (target: 95% over 30 days)
+# SLI определения:
+#   Availability SLI = доля запросов БЕЗ HTTP 5xx (цель: 99.5% за 30 дней)
+#   Latency SLI      = доля запросов с latency < 500ms (цель: 95% за 30 дней)
 #
-# Error budget (99.5% SLO, 30 days):
-#   Allowed downtime = 0.5% × 30d × 24h × 60m = 216 minutes per month
+# Error budget (99.5% SLO, 30 дней):
+#   Allowed downtime = 0.5% × 30d × 24h × 60m = 216 минут в месяц
 #
-# Correct NGINX Ingress labels:
-#   ingress           = Ingress resource name      → "wordpress"
-#   exported_namespace= Ingress namespace          → "wordpress"
-#   namespace         = controller namespace       → "ingress-nginx" (NOT used)
+# Правильные лейблы NGINX Ingress:
+#   ingress           = имя Ingress ресурса  → "wordpress"
+#   exported_namespace= namespace Ingress'а  → "wordpress"
+#   namespace         = namespace контроллера → "ingress-nginx" (НЕ используем)
 #
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -23,12 +23,12 @@ metadata:
 spec:
   groups:
 
-    # ─── Recording rules: sliding windows for burn-rate alerts ──────────────
+    # ─── Recording rules: скользящие окна для burn-rate алертов ─────────────
     - name: wordpress.slo.recording
       interval: 30s
       rules:
 
-        # Error ratio (5xx) over the last 5 minutes
+        # Доля ошибок (5xx) за последние 5 минут
         - record: job:wordpress_request_error_rate:ratio_rate5m
           expr: |
             sum(rate(nginx_ingress_controller_requests{
@@ -42,7 +42,7 @@ spec:
               exported_namespace="wordpress"
             }[5m]))
 
-        # Error ratio over the last 30 minutes
+        # Доля ошибок за последние 30 минут
         - record: job:wordpress_request_error_rate:ratio_rate30m
           expr: |
             sum(rate(nginx_ingress_controller_requests{
@@ -56,7 +56,7 @@ spec:
               exported_namespace="wordpress"
             }[30m]))
 
-        # Error ratio over the last 1 hour
+        # Доля ошибок за последние 1 час
         - record: job:wordpress_request_error_rate:ratio_rate1h
           expr: |
             sum(rate(nginx_ingress_controller_requests{
@@ -70,7 +70,7 @@ spec:
               exported_namespace="wordpress"
             }[1h]))
 
-        # Error ratio over the last 6 hours
+        # Доля ошибок за последние 6 часов
         - record: job:wordpress_request_error_rate:ratio_rate6h
           expr: |
             sum(rate(nginx_ingress_controller_requests{
@@ -84,7 +84,7 @@ spec:
               exported_namespace="wordpress"
             }[6h]))
 
-        # Fast request ratio (<500ms) over 5 minutes
+        # Доля быстрых запросов (<500ms) за 5 минут
         - record: job:wordpress_request_latency_ok:ratio_rate5m
           expr: |
             sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{
@@ -98,7 +98,7 @@ spec:
               exported_namespace="wordpress"
             }[5m]))
 
-        # Fast request ratio (<500ms) over 1 hour
+        # Доля быстрых запросов (<500ms) за 1 час
         - record: job:wordpress_request_latency_ok:ratio_rate1h
           expr: |
             sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{
@@ -112,12 +112,12 @@ spec:
               exported_namespace="wordpress"
             }[1h]))
 
-    # ─── Alerts: Availability SLO (99.5%) ────────────────────────────────────
+    # ─── Алерты: Availability SLO (99.5%) ───────────────────────────────────
     # Multi-window, multi-burn-rate approach (Google SRE Book)
     - name: wordpress.slo.availability
       rules:
 
-        # CRITICAL: fast error budget burn — 14x burn rate over 1h + 5m
+        # CRITICAL: быстрый расход error budget — 14x burn rate за 1h + 5m
         - alert: WordPressAvailabilitySLOBurnRateCritical
           expr: |
             job:wordpress_request_error_rate:ratio_rate1h > (14 * 0.005)
@@ -129,13 +129,13 @@ spec:
             service: wordpress
             slo: availability
           annotations:
-            summary: "WordPress: critical error budget burn"
+            summary: "WordPress: критический расход error budget"
             description: >
-              Error rate exceeds 14x SLO threshold ({{ $value | humanizePercentage }}).
-              SLO: 99.5% availability. Error budget will be exhausted in ~2 hours.
-              Immediately check WordPress pods and MariaDB!
+              Скорость ошибок превышает 14x SLO порог ({{ $value | humanizePercentage }}).
+              SLO: 99.5% availability. Error budget сгорит за ~2 часа.
+              Немедленно проверьте WordPress поды и MariaDB!
 
-        # WARNING: slow error budget burn — 6x burn rate over 6h + 30m
+        # WARNING: медленный расход error budget — 6x burn rate за 6h + 30m
         - alert: WordPressAvailabilitySLOBurnRateWarning
           expr: |
             job:wordpress_request_error_rate:ratio_rate6h > (6 * 0.005)
@@ -147,12 +147,12 @@ spec:
             service: wordpress
             slo: availability
           annotations:
-            summary: "WordPress: elevated error budget burn"
+            summary: "WordPress: повышенный расход error budget"
             description: >
-              Error rate exceeds 6x SLO threshold ({{ $value | humanizePercentage }}).
-              SLO: 99.5% availability. Error budget will be exhausted in ~5 days.
+              Скорость ошибок превышает 6x SLO порог ({{ $value | humanizePercentage }}).
+              SLO: 99.5% availability. Error budget закончится за ~5 дней.
 
-    # ─── Alerts: Latency SLO (95% of requests < 500ms) ──────────────────────
+    # ─── Алерты: Latency SLO (95% запросов < 500ms) ─────────────────────────
     - name: wordpress.slo.latency
       rules:
 
@@ -165,12 +165,12 @@ spec:
             service: wordpress
             slo: latency
           annotations:
-            summary: "WordPress: latency SLO violation"
+            summary: "WordPress: нарушен SLO по latency"
             description: >
-              Only {{ $value | humanizePercentage }} of requests complete
-              within 500ms (SLO: 95%).
+              Только {{ $value | humanizePercentage }} запросов выполняются
+              быстрее 500ms (SLO: 95%).
 
-    # ─── Alerts: Pod Availability (fast unavailability detection) ────────────
+    # ─── Алерты: Pod Availability (быстрый детект недоступности) ────────────
     - name: wordpress.availability
       rules:
 
@@ -185,8 +185,8 @@ spec:
             severity: critical
             service: wordpress
           annotations:
-            summary: "WordPress is down"
-            description: "No WordPress pod has been Ready for more than 2 minutes."
+            summary: "WordPress недоступен"
+            description: "Ни один под WordPress не Ready более 2 минут."
 
         - alert: WordPressPartiallyDown
           expr: |
@@ -204,6 +204,6 @@ spec:
             severity: warning
             service: wordpress
           annotations:
-            summary: "WordPress: incomplete replica count"
+            summary: "WordPress: неполное количество реплик"
             description: >
-              Only {{ $value }} replicas available out of expected.
+              Доступно {{ $value }} реплик из ожидаемых.

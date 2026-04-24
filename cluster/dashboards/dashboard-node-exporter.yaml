@@ -1,6 +1,6 @@
 ---
 # Grafana Dashboard: Node Exporter Full (grafana.com/dashboards/1860)
-# Sidecar automatically picks up ConfigMaps with label grafana_dashboard=1
+# Sidecar автоматически подхватит ConfigMap с label grafana_dashboard=1
 apiVersion: v1
 kind: ConfigMap
 metadata:

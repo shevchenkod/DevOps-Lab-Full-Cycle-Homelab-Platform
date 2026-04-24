@@ -15,7 +15,7 @@ spec:
       releaseName: promtail
       valuesObject:
 
-        # DaemonSet — runs on every node, reads /var/log/pods
+        # DaemonSet — запускается на каждой ноде, читает /var/log/pods
         resources:
           requests:
             cpu: 50m
@@ -24,20 +24,20 @@ spec:
             memory: 256Mi
 
         config:
-          # Loki service address (within the cluster)
+          # Адрес Loki service (внутри кластера)
           clients:
             - url: http://loki.loki.svc.cluster.local:3100/loki/api/v1/push
 
-          # Positions — where Promtail saves log reading progress
+          # Позиции — где Promtail сохраняет прогресс чтения логов
           positions:
             filename: /run/promtail/positions.yaml
 
-          # Log sources: all pods via CRI
+          # Источники логов: все поды через CRI
           snippets:
             pipelineStages:
               - cri: {}
 
-        # Tolerations — also run on master/control-plane nodes
+        # Tolerations — запускать в т.ч. на master/control-plane нодах
         tolerations:
           - key: node-role.kubernetes.io/control-plane
             operator: Exists

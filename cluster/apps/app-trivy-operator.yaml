@@ -16,10 +16,8 @@ spec:
       valuesObject:
 
         trivy:
-          # Scan severity levels
           severity: CRITICAL,HIGH,MEDIUM
-          # Client-server mode caches vulnerability DB locally
-          mode: ClientServer
+          mode: Standalone
 
         # Prometheus metrics endpoint
         serviceMonitor:

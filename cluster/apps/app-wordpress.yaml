@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: wordpress
-    targetRevision: "29.2.7"   # BSI chart + legacy debian images from docker.io/bitnamilegacy (without FIPS/Photon)
+    targetRevision: "29.2.7"   # BSI chart + legacy debian images из docker.io/bitnamilegacy (без FIPS/Photon)
     helm:
       releaseName: wordpress
       valuesObject:
@@ -20,14 +20,14 @@ spec:
         wordpressEmail: admin@lab.local
         wordpressBlogName: "DevOps Lab"
 
-        # Override image to bitnamilegacy (debian-12) — BSI/Photon images incompatible with non-FIPS Ubuntu kernel
-        # bitnami/wordpress removed from dockerhub, bitnamilegacy is the official Bitnami legacy repository
+        # Переопределяем образ на bitnamilegacy (debian-12) — BSI/Photon образы несовместимы с non-FIPS Ubuntu ядром
+        # bitnami/wordpress удалены с dockerhub, bitnamilegacy — официальный legacy репозиторий Bitnami
         image:
           registry: docker.io
           repository: bitnamilegacy/wordpress
           tag: 6.8.2-debian-12-r5
 
-        # Allow non-BSI images (bitnamilegacy does not pass BSI verification)
+        # Разрешаем non-BSI образы (bitnamilegacy не проходит верификацию BSI)
         global:
           security:
             allowInsecureImages: true
@@ -68,26 +68,26 @@ spec:
               storageClass: longhorn
               size: 2Gi
 
-        # Rolling Update strategy
-        # ⚠️ WordPress uses RWO PVC (ReadWriteOnce) — cannot be mounted by 2 pods simultaneously
-        # Therefore maxSurge: 0 — terminate old pod first, then start new one (brief gap ~10-30s)
-        # Zero-downtime alternative: RWX storage or Recreate strategy
+        # Rolling Update стратегия
+        # ⚠️ WordPress использует RWO PVC (ReadWriteOnce) — нельзя монтировать к 2 pods одновременно
+        # Поэтому maxSurge: 0 — сначала убиваем старый pod, потом поднимаем новый (краткий gap ~10-30s)
+        # Альтернатива zero-downtime: RWX storage или Recreate strategy
         updateStrategy:
           type: RollingUpdate
           rollingUpdate:
-            maxSurge: 0        # do not create new pod until old one is removed (RWO PVC constraint)
-            maxUnavailable: 1  # terminate old pod → release PVC → start new one
+            maxSurge: 0        # не создавать новый pod до удаления старого (RWO PVC ограничение)
+            maxUnavailable: 1  # убить старый pod → освободить PVC → запустить новый
 
-        # HPA disabled: RWO PVC does not support horizontal scaling
+        # HPA отключён: RWO PVC не поддерживает горизонтальное масштабирование
         autoscaling:
           enabled: false
 
-        # PDB — protection during drain / rolling update
+        # PDB — защита при drain / rolling update
         pdb:
           create: true
-          minAvailable: 1      # always at least 1 pod available
+          minAvailable: 1      # всегда как минимум 1 pod доступен
 
-        # Resources — requests + limits (required for HPA CPU%)
+        # Ресурсы — requests + limits (нужны для HPA CPU%)
         resources:
           requests:
             cpu: 100m
@@ -100,7 +100,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: wordpress
 
-  # Ignore StatefulSet drift (mariadb) — K8s 1.27+ auto-adds fields not present in Helm template:
+  # Игнорируем drift StatefulSet (mariadb) — K8s 1.27+ авто-добавляет поля, не входящие в Helm-шаблон:
   #   - persistentVolumeClaimRetentionPolicy: Retain/Retain (1.27+ default)
   #   - volumeClaimTemplates[0].spec.volumeMode: Filesystem (API-server default)
   #   - volumeClaimTemplates[0].status: {phase: Pending}

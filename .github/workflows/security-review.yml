@@ -1,0 +1,34 @@
+name: Security Review
+
+# Runs Claude AI security analysis on every PR
+# Only analyzes changed files (diff-aware), posts findings as PR comments
+# Action: https://github.com/anthropics/claude-code-security-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write  # Required to post PR comments
+  contents: read
+
+jobs:
+  security-review:
+    name: Claude Security Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: Run Claude Security Review
+        uses: anthropics/claude-code-security-review@main
+        with:
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          comment-pr: true
+          upload-results: true
+          exclude-directories: "node_modules,.git,wiki/node_modules"
+          custom-security-scan-instructions: .github/security-scan-instructions.txt

@@ -1,4 +1,4 @@
-# Full Strapi project (/srv/app) — includes node_modules, .tmp (SQLite), public/uploads
+# Весь Strapi проект (/srv/app) — включая node_modules, .tmp (SQLite), public/uploads
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

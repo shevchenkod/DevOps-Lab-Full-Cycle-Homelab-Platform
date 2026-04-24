@@ -1,5 +1,5 @@
-﻿---
-# ServiceAccount for N8N — used for access to the Kubernetes API
+---
+# ServiceAccount для N8N — используется для доступа к Kubernetes API
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -7,7 +7,7 @@ metadata:
   namespace: n8n
 
 ---
-# Long-lived token for ServiceAccount (N8N workflows)
+# Долгоживущий токен для ServiceAccount (N8N workflows)
 apiVersion: v1
 kind: Secret
 metadata:
@@ -18,7 +18,7 @@ metadata:
 type: kubernetes.io/service-account-token
 
 ---
-# ClusterRole: read-only access to core cluster resources
+# ClusterRole: read-only доступ к основным ресурсам кластера
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -45,7 +45,7 @@ rules:
     verbs: ["get", "list"]
 
 ---
-# ClusterRoleBinding: bind ClusterRole to ServiceAccount n8n
+# ClusterRoleBinding: привязка ClusterRole к ServiceAccount n8n
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

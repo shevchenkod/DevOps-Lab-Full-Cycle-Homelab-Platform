@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567801",
   "name": "🔔 Alertmanager → Telegram",
   "nodes": [
@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Alertmanager payload\nconst body = $input.first().json.body || $input.first().json;\nconst alerts = body.alerts || [];\nconst results = [];\n\nfor (const alert of alerts) {\n  const isFiring = alert.status === 'firing';\n  const emoji = isFiring ? '🔴' : '✅';\n  const name = alert.labels?.alertname || 'Unknown';\n  const ns = alert.labels?.namespace || 'cluster';\n  const severity = alert.labels?.severity || 'info';\n  const summary = alert.annotations?.summary || '';\n  const desc = alert.annotations?.description || '';\n  const instance = alert.labels?.instance || '';\n\n  const sevEmoji = severity === 'critical' ? '🚨' : severity === 'warning' ? '⚠️' : 'ℹ️';\n\n  let msg = `${emoji} <b>${name}</b>\\n`;\n  msg += `📍 Namespace: <code>${ns}</code>\\n`;\n  msg += `${sevEmoji} Severity: <b>${severity}</b>\\n`;\n  if (instance) msg += `🖥️ Instance: <code>${instance}</code>\\n`;\n  if (summary) msg += `💬 ${summary}\\n`;\n  if (desc) msg += `📋 ${desc}\\n`;\n  if (!isFiring) msg += `\\n✅ <i>Alert resolved</i>`;\n\n  results.push({ json: { message: msg, alertname: name, status: alert.status } });\n}\n\nif (results.length === 0) {\n  return [{ json: { message: '✅ All alerts cleared', alertname: 'none', status: 'resolved' } }];\n}\n\nreturn results;"
+        "jsCode": "// Парсим Alertmanager payload\nconst body = $input.first().json.body || $input.first().json;\nconst alerts = body.alerts || [];\nconst results = [];\n\nfor (const alert of alerts) {\n  const isFiring = alert.status === 'firing';\n  const emoji = isFiring ? '🔴' : '✅';\n  const name = alert.labels?.alertname || 'Unknown';\n  const ns = alert.labels?.namespace || 'cluster';\n  const severity = alert.labels?.severity || 'info';\n  const summary = alert.annotations?.summary || '';\n  const desc = alert.annotations?.description || '';\n  const instance = alert.labels?.instance || '';\n\n  const sevEmoji = severity === 'critical' ? '🚨' : severity === 'warning' ? '⚠️' : 'ℹ️';\n\n  let msg = `${emoji} <b>${name}</b>\\n`;\n  msg += `📍 Namespace: <code>${ns}</code>\\n`;\n  msg += `${sevEmoji} Severity: <b>${severity}</b>\\n`;\n  if (instance) msg += `🖥️ Instance: <code>${instance}</code>\\n`;\n  if (summary) msg += `💬 ${summary}\\n`;\n  if (desc) msg += `📋 ${desc}\\n`;\n  if (!isFiring) msg += `\\n✅ <i>Alert resolved</i>`;\n\n  results.push({ json: { message: msg, alertname: name, status: alert.status } });\n}\n\nif (results.length === 0) {\n  return [{ json: { message: '✅ All alerts cleared', alertname: 'none', status: 'resolved' } }];\n}\n\nreturn results;"
       },
       "id": "b2c3d4e5-f6a7-8901-bcde-f01234567890",
       "name": "Format Alert Message",

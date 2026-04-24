@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567802",
   "name": "🤖 Telegram Bot (Polling)",
   "nodes": [
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Read/save offset via Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst offset = staticData.telegramOffset || 0;\nreturn [{ json: { offset } }];"
+        "jsCode": "// Читаем/сохраняем offset через Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst offset = staticData.telegramOffset || 0;\nreturn [{ json: { offset } }];"
       },
       "id": "f6a7b8c9-d0e1-2345-fabc-345678901234",
       "name": "Get Offset",
@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse updates — filter only messages for our chat_id\nconst data = $input.first().json;\nconst updates = data.result || [];\nconst allowedChatId = parseInt($env.N8N_TELEGRAM_CHAT_ID);\n\nif (updates.length === 0) return [];\n\n// Update offset\nconst staticData = $getWorkflowStaticData('global');\nconst lastUpdate = updates[updates.length - 1];\nstaticData.telegramOffset = lastUpdate.update_id + 1;\n\n// Filter and extract commands\nconst messages = [];\nfor (const upd of updates) {\n  const msg = upd.message || upd.edited_message;\n  if (!msg) continue;\n  if (msg.chat.id !== allowedChatId) continue;\n  \n  const text = (msg.text || '').trim();\n  const command = text.split(' ')[0].toLowerCase();\n  const args = text.split(' ').slice(1).join(' ');\n  \n  messages.push({ json: {\n    update_id: upd.update_id,\n    chat_id: msg.chat.id,\n    from: msg.from?.username || msg.from?.first_name || 'Unknown',\n    text,\n    command,\n    args\n  }});\n}\n\nreturn messages;"
+        "jsCode": "// Парсим обновления — фильтруем только сообщения нашего chat_id\nconst data = $input.first().json;\nconst updates = data.result || [];\nconst allowedChatId = parseInt($env.N8N_TELEGRAM_CHAT_ID);\n\nif (updates.length === 0) return [];\n\n// Обновляем offset\nconst staticData = $getWorkflowStaticData('global');\nconst lastUpdate = updates[updates.length - 1];\nstaticData.telegramOffset = lastUpdate.update_id + 1;\n\n// Фильтруем и извлекаем команды\nconst messages = [];\nfor (const upd of updates) {\n  const msg = upd.message || upd.edited_message;\n  if (!msg) continue;\n  if (msg.chat.id !== allowedChatId) continue;\n  \n  const text = (msg.text || '').trim();\n  const command = text.split(' ')[0].toLowerCase();\n  const args = text.split(' ').slice(1).join(' ');\n  \n  messages.push({ json: {\n    update_id: upd.update_id,\n    chat_id: msg.chat.id,\n    from: msg.from?.username || msg.from?.first_name || 'Unknown',\n    text,\n    command,\n    args\n  }});\n}\n\nreturn messages;"
       },
       "id": "b8c9d0e1-f2a3-4567-bcde-567890123456",
       "name": "Parse Commands",
@@ -141,7 +141,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format node status\nconst nodes = $input.first().json.items || [];\nlet msg = '🖥️ <b>Cluster Nodes</b>\\n\\n';\n\nfor (const node of nodes) {\n  const name = node.metadata.name;\n  const ready = node.status.conditions?.find(c => c.type === 'Ready');\n  const status = ready?.status === 'True' ? '✅' : '🔴';\n  const roles = Object.keys(node.metadata.labels || {})\n    .filter(k => k.startsWith('node-role.kubernetes.io/'))\n    .map(k => k.replace('node-role.kubernetes.io/', ''))\n    .join(', ') || 'worker';\n  const cpu = node.status.capacity?.cpu || '?';\n  const mem = node.status.capacity?.memory || '?';\n  const zone = node.metadata.labels?.['topology.kubernetes.io/zone'] || '?';\n  \n  msg += `${status} <code>${name}</code> [${roles}]\\n`;\n  msg += `   Zone: ${zone} | CPU: ${cpu} | Mem: ${parseInt(mem) > 0 ? Math.round(parseInt(mem)/1024/1024) + 'Gi' : mem}\\n`;\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
+        "jsCode": "// Форматируем статус нод\nconst nodes = $input.first().json.items || [];\nlet msg = '🖥️ <b>Cluster Nodes</b>\\n\\n';\n\nfor (const node of nodes) {\n  const name = node.metadata.name;\n  const ready = node.status.conditions?.find(c => c.type === 'Ready');\n  const status = ready?.status === 'True' ? '✅' : '🔴';\n  const roles = Object.keys(node.metadata.labels || {})\n    .filter(k => k.startsWith('node-role.kubernetes.io/'))\n    .map(k => k.replace('node-role.kubernetes.io/', ''))\n    .join(', ') || 'worker';\n  const cpu = node.status.capacity?.cpu || '?';\n  const mem = node.status.capacity?.memory || '?';\n  const zone = node.metadata.labels?.['topology.kubernetes.io/zone'] || '?';\n  \n  msg += `${status} <code>${name}</code> [${roles}]\\n`;\n  msg += `   Zone: ${zone} | CPU: ${cpu} | Mem: ${parseInt(mem) > 0 ? Math.round(parseInt(mem)/1024/1024) + 'Gi' : mem}\\n`;\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
       },
       "id": "b4c5d6e7-f8a9-0123-bcde-123456789012",
       "name": "Format Nodes Status",
@@ -151,7 +151,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format problem pods\nconst pods = $input.first().json.items || [];\nconst problemPods = pods.filter(p => {\n  const phase = p.status.phase;\n  if (phase === 'Running' || phase === 'Succeeded') {\n    // Check containers for restarts > 5\n    const containers = p.status.containerStatuses || [];\n    return containers.some(c => c.restartCount > 5);\n  }\n  return phase !== 'Running' && phase !== 'Succeeded';\n});\n\nlet msg = `📦 <b>Pod Status</b>\\n`;\nmsg += `Total: ${pods.length} pods | Issues: ${problemPods.length}\\n\\n`;\n\nif (problemPods.length === 0) {\n  msg += '✅ All pods healthy!';\n} else {\n  msg += '⚠️ <b>Problem Pods:</b>\\n';\n  for (const pod of problemPods.slice(0, 10)) {\n    const name = pod.metadata.name;\n    const ns = pod.metadata.namespace;\n    const phase = pod.status.phase;\n    const restarts = (pod.status.containerStatuses || []).reduce((sum, c) => sum + (c.restartCount || 0), 0);\n    msg += `🔴 <code>${ns}/${name}</code>\\n   Phase: ${phase} | Restarts: ${restarts}\\n`;\n  }\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
+        "jsCode": "// Форматируем проблемные поды\nconst pods = $input.first().json.items || [];\nconst problemPods = pods.filter(p => {\n  const phase = p.status.phase;\n  if (phase === 'Running' || phase === 'Succeeded') {\n    // Проверяем контейнеры на restarts > 5\n    const containers = p.status.containerStatuses || [];\n    return containers.some(c => c.restartCount > 5);\n  }\n  return phase !== 'Running' && phase !== 'Succeeded';\n});\n\nlet msg = `📦 <b>Pod Status</b>\\n`;\nmsg += `Total: ${pods.length} pods | Issues: ${problemPods.length}\\n\\n`;\n\nif (problemPods.length === 0) {\n  msg += '✅ All pods healthy!';\n} else {\n  msg += '⚠️ <b>Problem Pods:</b>\\n';\n  for (const pod of problemPods.slice(0, 10)) {\n    const name = pod.metadata.name;\n    const ns = pod.metadata.namespace;\n    const phase = pod.status.phase;\n    const restarts = (pod.status.containerStatuses || []).reduce((sum, c) => sum + (c.restartCount || 0), 0);\n    msg += `🔴 <code>${ns}/${name}</code>\\n   Phase: ${phase} | Restarts: ${restarts}\\n`;\n  }\n}\n\nreturn [{ json: { message: msg, chat_id: $('Parse Commands').first().json.chat_id } }];"
       },
       "id": "c5d6e7f8-a9b0-1234-cdef-234567890123",
       "name": "Format Pods Status",
@@ -161,7 +161,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const chatId = $input.first().json.chat_id;\nconst msg = `🤖 <b>DevOps Lab Bot</b>\\n\\nAvailable commands:\\n\\n/status — cluster node status\\n/pods — all pods status (problem pods highlighted)\\n/help — this help\\n\\n⚙️ Bot runs in polling mode. Requests are processed once per minute.`;\nreturn [{ json: { message: msg, chat_id: chatId } }];"
+        "jsCode": "const chatId = $input.first().json.chat_id;\nconst msg = `🤖 <b>DevOps Lab Bot</b>\\n\\nДоступные команды:\\n\\n/status — статус нод кластера\\n/pods — статус всех подов (проблемные выделены)\\n/help — эта справка\\n\\n⚙️ Бот работает в режиме polling. Запросы обрабатываются раз в минуту.`;\nreturn [{ json: { message: msg, chat_id: chatId } }];"
       },
       "id": "d6e7f8a9-b0c1-2345-defa-345678901234",
       "name": "Help Message",
