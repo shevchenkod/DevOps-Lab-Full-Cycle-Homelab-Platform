@@ -16,6 +16,9 @@ spec:
       valuesObject:
 
         grafana:
+          # Grafana plugin install (grafana-image-renderer) takes 70-90s — increase deadline
+          # Default progressDeadlineSeconds=600 is too short for plugin downloads + PVC attach
+          progressDeadlineSeconds: 1800
           adminPassword: "DevOpsLab2026!"
           # Inject Azure Monitor client secret from K8s Secret (created manually, NOT in git)
           # kubectl create secret generic grafana-azure-monitor -n monitoring \
@@ -134,6 +137,9 @@ spec:
     namespace: monitoring
 
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
