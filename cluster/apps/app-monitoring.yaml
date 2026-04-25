@@ -33,6 +33,8 @@ spec:
             GF_RENDERING_SERVER_URL: http://localhost:8081/render
             GF_RENDERING_CALLBACK_URL: http://localhost:3000/
             GF_LOG_FILTERS: rendering:debug
+            # Grafana 12.x requires non-default renderer_token for security
+            GF_RENDERING_RENDERER_TOKEN: "devops-lab-renderer-2026"
 
           extraContainers: |
             - name: grafana-image-renderer
