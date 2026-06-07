@@ -28,6 +28,9 @@
 ![Vault](https://img.shields.io/badge/HashiCorp_Vault-v1.19-000000?style=for-the-badge&logo=vault)
 ![ESO](https://img.shields.io/badge/External_Secrets-v0.14.3-FF5733?style=for-the-badge)
 ![Trivy](https://img.shields.io/badge/Trivy_Operator-v0.32.1-1904DA?style=for-the-badge)
+![Infisical](https://img.shields.io/badge/Infisical-Secrets_Platform-orange?style=for-the-badge)
+![Logto](https://img.shields.io/badge/Logto-SSO_/_OIDC-5923A8?style=for-the-badge)
+![OPA Gatekeeper](https://img.shields.io/badge/OPA_Gatekeeper-Policy_Engine-2D5BE3?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Blocks_A--K_Complete-brightgreen?style=for-the-badge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
@@ -35,7 +38,7 @@
 
 <div align="center">
 
-| 🖥️ **2 bare-metal hosts** | ☸️ **4-node Kubernetes** | 🚀 **20 apps via GitOps** | 💾 **~3 min DR restore** | 📊 **Full observability** | 📚 **36 lessons documented** |
+| 🖥️ **2 bare-metal hosts** | ☸️ **4-node Kubernetes** | 🚀 **23 apps via GitOps** | 💾 **~3 min DR restore** | 📊 **Full observability** | 🔐 **Full secrets + identity stack** |
 |:-:|:-:|:-:|:-:|:-:|:-:|
 
 </div>
@@ -50,7 +53,7 @@ This is a **Production-grade Platform Engineering Lab** — a complete operation
 
 - **Hypervisor layer**: 2 physical Proxmox VE 8.3 hosts managed via Terraform IaC — reproducible VM creation with a single command
 - **Kubernetes from scratch**: cluster bootstrapped with `kubeadm` (not managed EKS/GKE), 4 nodes (1 control-plane + 3 workers), containerd runtime, Calico CNI, MetalLB L2 — deep understanding of Kubernetes internals
-- **GitOps App-of-Apps**: 20 applications synced via Argo CD — what is in Git is what is in the cluster. Pattern used by Netflix, Uber, Spotify
+- **GitOps App-of-Apps**: 23 applications synced via Argo CD — what is in Git is what is in the cluster. Pattern used by Netflix, Uber, Spotify
 - **Full Observability**: Prometheus v3.10 + Grafana 12.4 + Loki v3.4 + Alertmanager → Telegram. Logs, metrics, alerts — out of the box for every application
 - **Backup & Disaster Recovery**: Velero + Longhorn BackupTarget → MinIO S3. DR drill verified: full namespace restore in ~3 minutes
 - **CI/CD**: GitHub Actions + ARC (Actions Runner Controller) — self-hosted runners inside K8s, automatic wiki rebuild and deploy on every push
@@ -95,6 +98,12 @@ graph TB
         MINIO["MinIO S3"]
         VELERO["Velero v1.18.0 + DR"]
     end
+    subgraph Security["🔐 Security & Identity"]
+        VAULT["Vault v1.19\nSecrets Store"]
+        INFISICAL["Infisical\nSecrets Platform"]
+        LOGTO["Logto\nSSO / OIDC Provider"]
+        GATEKEEPER["OPA Gatekeeper\nPolicy Engine"]
+    end
     subgraph Observability["📊 Observability"]
         PROM["Prometheus v3.10.0"]
         GRAFANA["Grafana 12.4.0"]
@@ -104,10 +113,12 @@ graph TB
     PVE01 --> M01 & W01
     PVE02 --> W02
     GIT -->|"git push triggers sync"| ARGO
-    ARGO --> Platform & Apps & Observability
+    ARGO --> Platform & Apps & Observability & Security
     LONGHORN --> Apps
     VELERO --> MINIO
     AM --> N8N
+    VAULT --> INFISICAL
+    LOGTO -->|"OIDC"| WP
 ```
 
 ---
@@ -223,6 +234,9 @@ graph TB
 | **Secret Sync** | External Secrets Operator (ESO) | v0.14.3 | ✅ |
 | **Security Scanning** | Trivy Operator (CVE, IaC, secrets) | v0.32.1 | ✅ |
 | **Workflow Automation** | N8N | v2.10.2 | ✅ |
+| **Secrets Platform** | Infisical (standalone, PostgreSQL backend) | latest | ✅ |
+| **Identity / SSO** | Logto (OIDC provider, PostgreSQL) | latest | ✅ |
+| **Policy Engine** | OPA Gatekeeper (admission controller) | v3.18.x | ✅ |
 
 ---
 
@@ -273,6 +287,9 @@ graph TB
 | MinIO | minio | 2024-12-18, 10Gi PVC, ServiceMonitor (job=minio) | ✅ |
 | Velero | velero | v1.18.0, BSL Available, `--features=EnableCSI` | ✅ |
 | N8N | n8n | v2.10.2, 1/1 Running, PVC 5Gi Longhorn | ✅ |
+| Infisical | infisical | standalone, PostgreSQL backend, 5 pods Running | ✅ |
+| Logto | logto | OIDC provider + PostgreSQL, PVC 4Gi Longhorn | ✅ |
+| OPA Gatekeeper | gatekeeper-system | v3.18.x, 4 pods (controller + audit + webhook + metrics) | ✅ |
 
 ---
 
@@ -282,15 +299,19 @@ All services are exposed via HTTPS using an internal CA (`lab-ca-issuer`) and `*
 
 | URL | Service | Version | Auth | Status |
 |-----|---------|---------|------|--------|
-| https://argocd.lab.local | Argo CD | v3.3.2 | Local admin | ✅ |
+| https://argocd.lab.local | Argo CD | v3.3.4 | Local admin | ✅ |
 | https://grafana.lab.local | Grafana | 12.4.0 | Local admin | ✅ |
-| https://longhorn.lab.local | Longhorn UI | v1.11.0 | — (disabled in lab) | ✅ |
+| https://longhorn.lab.local | Longhorn UI | v1.11.1 | — (disabled in lab) | ✅ |
 | https://wordpress.lab.local | WordPress | 6.8.2 Bitnami | Local admin | ✅ |
 | https://strapi.lab.local | Strapi CMS | v4.26.1 | Created on first login | ✅ |
 | https://kuma.lab.local | Uptime Kuma | v2.1.3 | Created on first login | ✅ |
 | https://minio.lab.local | MinIO Console | 2024-12-18 | S3 credentials | ✅ |
 | https://wiki.lab.local | Wiki (MkDocs) | Material 9.7+ | Public | ✅ |
 | https://n8n.lab.local | N8N | v2.10.2 | Created on first login | ✅ |
+| https://vault.lab.local | HashiCorp Vault UI | v1.19 | Root token / OIDC | ✅ |
+| https://infisical.lab.local | Infisical | latest | Created on first login | ✅ |
+| https://logto.lab.local | Logto (SSO / OIDC) | latest | Created on first login | ✅ |
+| https://opa.lab.local | OPA Gatekeeper Metrics | v3.18.x | Public metrics endpoint | ✅ |
 | https://app.lab.local | Test App | nginx | Public | ✅ |
 
 > 🔐 Credentials and connection details: see [SECURITY.md](SECURITY.md) and [docs/DevOps.md](docs/DevOps.md).
@@ -309,6 +330,10 @@ All services are exposed via HTTPS using an internal CA (`lab-ca-issuer`) and `*
 | **In-Cluster Registry** | registry:2 | `registry` | http://10.44.81.110:30500 | NodePort HTTP (insecure). Images: `wiki:latest`. containerd mirrors configured on all nodes |
 | **N8N** | v2.10.2 | `n8n` | https://n8n.lab.local | Workflow automation. SQLite, Recreate strategy. PVC 5Gi Longhorn. Sealed Secrets: `N8N_ENCRYPTION_KEY` + `N8N_USER_MANAGEMENT_JWT_SECRET` |
 | **metrics-server** | v0.8.1 | `kube-system` | — | Kubernetes Metrics API for `kubectl top` / HPA / VPA. Managed via Argo CD GitOps |
+| **HashiCorp Vault** | v1.19 | `vault` | https://vault.lab.local | Standalone + Raft storage. Vault Agent Injector for auto-inject into pods via annotations. PVC 10Gi Longhorn. Sealed after every restart — requires manual unseal with Shamir keys |
+| **Infisical** | latest | `infisical` | https://infisical.lab.local | Open-source secrets management platform. PostgreSQL backend. Web UI for managing secrets, environments, and access control. Bundled nginx ingress restricted to its own namespace |
+| **Logto** | latest | `logto` | https://logto.lab.local | Open-source identity platform (SSO / OIDC / OAuth2). Replaces Keycloak. PostgreSQL backend, PVC 4Gi Longhorn. Idempotent DB seed + migration via init container |
+| **OPA Gatekeeper** | v3.18.x | `gatekeeper-system` | https://opa.lab.local | Open Policy Agent admission controller. Validates and enforces policy constraints on all K8s resources. Metrics endpoint exposed via ingress at `/metrics` |
 
 ---
 
@@ -517,6 +542,15 @@ kubectl rollout restart deployment/wiki -n wiki
 - ✅ **Zone A failure test** — cordoned master-01 + worker-01 → ALL 13 services on worker-02 (zone-b): WordPress, Grafana, Loki, MinIO, Strapi, Wiki, Registry, Velero, ingress-nginx ✅
 - ✅ **Documented** — `cluster/platform/node-labels.yaml`, Lesson 31, runbooks updated
 
+### Block K — Security & Identity Platform
+- ✅ **HashiCorp Vault v1.19** — standalone + Raft storage on Longhorn 10Gi PVC. Vault Agent Injector deployed for auto-inject. Web UI at `vault.lab.local`. Shamir's Secret Sharing (3 keys, threshold 2). External Secrets Operator `ClusterSecretStore vault-backend` syncing secrets to K8s
+- ✅ **Infisical** — open-source secrets management platform. Deployed with PostgreSQL backend. Full Web UI at `infisical.lab.local`. Bundled nginx controller restricted to `infisical` namespace (webhook scope patched to prevent cluster-wide ingress interference)
+- ✅ **Logto** — open-source identity / SSO / OIDC provider. PostgreSQL backend with PVC 4Gi Longhorn. Idempotent init container: `db seed` + `db alteration deploy latest` (skips gracefully if already seeded). Web UI at `logto.lab.local`
+- ✅ **OPA Gatekeeper v3.18** — admission controller for policy enforcement. 4-pod deployment (controller + audit + webhook + metrics). Metrics endpoint exposed at `opa.lab.local/metrics`. Enforces K8s resource policies cluster-wide
+- ✅ **23 ArgoCD applications** — all `Synced / Healthy` (up from 20)
+- ✅ **Longhorn over-provisioning tuned** — 400% (from 100%) + min available 5% (from 25%) to prevent PVC scheduling failures on constrained nodes
+- ✅ **Uptime Kuma monitors** — all 14 services monitored across 3 groups: Platform, Monitoring, Applications
+
 </details>
 
 ---
@@ -565,9 +599,15 @@ Documentation available in the repository at `wiki/docs/`:
 │   │   ├── app-strapi.yaml         # Strapi v4.26.1
 │   │   ├── app-wiki.yaml           # Wiki MkDocs Material
 │   │   ├── app-n8n.yaml            # N8N v2.10.2
-│   │   ├── app-uptime-kuma.yaml    # Uptime Kuma v2.1.3
+│   │   │   ├── app-uptime-kuma.yaml    # Uptime Kuma v2.1.3
 │   │   ├── app-metrics-server.yaml # metrics-server v0.8.1
-│   │   └── app-registry.yaml       # In-cluster registry:2
+│   │   ├── app-registry.yaml       # In-cluster registry:2
+│   │   ├── app-vault.yaml          # HashiCorp Vault v1.19 (Helm + local ingress)
+│   │   ├── app-infisical.yaml      # Infisical secrets platform
+│   │   ├── app-logto.yaml          # Logto SSO / OIDC provider
+│   │   ├── app-gatekeeper.yaml     # OPA Gatekeeper policy engine
+│   │   ├── app-external-secrets.yaml # External Secrets Operator v0.14.3
+│   │   └── app-trivy-operator.yaml # Trivy Operator v0.32.1
 │   ├── arc/
 │   │   └── rbac.yaml               # ARC RBAC: ServiceAccount + ClusterRole
 │   ├── secrets/
@@ -593,6 +633,10 @@ Documentation available in the repository at `wiki/docs/`:
 │   ├── uptime-kuma/                # Uptime Kuma manifests
 │   ├── strapi/                     # Strapi CMS manifests
 │   ├── wiki/                       # Wiki manifests
+│   ├── vault/                      # Vault ingress + TLS certificate
+│   ├── infisical/                  # Infisical namespace + config
+│   ├── logto/                      # Logto deployment, postgres, ingress, PVC
+│   ├── gatekeeper/                 # OPA Gatekeeper ingress (metrics)
 │   └── longhorn-test/              # PVC + Pod persistence test
 ├── wiki/                           # Wiki source (MkDocs Material)
 │   ├── Dockerfile                  # Multi-stage: python:3.12-slim → mkdocs build → nginx:alpine
@@ -688,18 +732,22 @@ kubectl exec -n minio deploy/minio -- mc ls myminio/
 |-----------|-------------|----------|
 | **Security: NetworkPolicies** | Isolate namespaces (wordpress, strapi, argocd, monitoring...) | 🔴 High |
 | **Security: RBAC** | Fine-grained RBAC for workloads, PodSecurityAdmission `restricted` | 🔴 High |
-| **Kyverno** | Kubernetes-native policy engine: admission webhooks, mutation/validation | 🔴 High |
+| **Kyverno** | Kubernetes-native policy engine: admission webhooks, mutation/validation (OPA Gatekeeper already deployed) | 🔴 High |
 | **Harbor** | Self-hosted Container Registry with UI, RBAC, Trivy scanning — replaces `registry:2` | 🟡 Medium |
 | **Argo Rollouts** | Canary / Blue-Green deployments via Argo CD | 🟡 Medium |
 | **CI/CD: Trivy scan** | Image scanning as security gate in wiki-ci pipeline | 🟡 Medium |
 | **GitLab CE** | Self-hosted GitLab on Proxmox (VM via Terraform) + GitLab Runner in K8s | 🟡 Medium |
-| **KeyCloak** | SSO platform: bitnami/keycloak Helm, Microsoft OIDC / Google OAuth2 | 🟡 Medium |
 | **LiteLLM + OpenWebUI** | AI stack: LiteLLM as unified gateway (Claude + Gemini), OpenWebUI interface | 🟡 Medium |
 | **Grafana Tempo** | Distributed tracing — complements Grafana + Loki stack (OpenTelemetry) | 🟡 Medium |
+| **Vault Auto-Unseal** | Configure Vault Transit auto-unseal to eliminate manual unseal on pod restart | 🟡 Medium |
 | **MCP Server** | Model Context Protocol server in K8s: kubectl + Loki + Terraform tools for Claude | 🟢 Low |
 | **KEDA** | Event-driven autoscaling: scale pods by queue depth (RabbitMQ, Kafka, Prometheus) | 🟢 Low |
 | **Backstage** | Developer Portal: service catalog, documentation, TechDocs, templates | 🟢 Low |
-| **ESO** | External Secrets Operator as alternative to Sealed Secrets | 🟢 Low |
+
+**Completed from previous backlog:**
+| ~~KeyCloak~~ | ✅ Replaced by **Logto** — lighter OIDC provider, deployed in Block K | done |
+| ~~ESO~~ | ✅ **External Secrets Operator v0.14.3** deployed with `ClusterSecretStore vault-backend` | done |
+| ~~Vault~~ | ✅ **HashiCorp Vault v1.19** deployed in Block K | done |
 
 ---
 
@@ -726,4 +774,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Last updated: 10.04.2026 — 4-node cluster (worker-03 on pve02/zone-b added) ✅ | worker-01 resized to 4CPU/6GB ✅ | 36 Lessons Learned in Wiki | Velero BSL Available ✅ | Blocks A–K closed ✅*
+*Last updated: 07.06.2026 — 23 apps via GitOps ✅ | Security & Identity Platform complete (Vault + Infisical + Logto + OPA Gatekeeper) ✅ | 14 Uptime Kuma monitors across 3 groups ✅ | Longhorn over-provisioning tuned ✅ | Blocks A–K closed ✅*
