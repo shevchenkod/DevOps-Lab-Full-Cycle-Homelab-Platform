@@ -96,6 +96,7 @@ nav:
     - H. Backup & DR: roadmap/block-h.md
     - I. Operations: roadmap/block-i.md
     - J. AZ/Zone Topology: roadmap/block-j.md
+    - K. Security & Identity: roadmap/block-k.md
   - Infrastructure:
     - infrastructure/index.md
     - Proxmox VE: infrastructure/proxmox.md
@@ -123,6 +124,10 @@ nav:
     - MinIO: services/minio.md
     - N8N Automation: services/n8n.md
     - Uptime Kuma: services/uptime-kuma.md
+    - HashiCorp Vault: services/vault.md
+    - Infisical: services/infisical.md
+    - Logto (SSO/OIDC): services/logto.md
+    - OPA Gatekeeper: services/gatekeeper.md
   - Backup & DR:
     - backup/index.md
   - Security:

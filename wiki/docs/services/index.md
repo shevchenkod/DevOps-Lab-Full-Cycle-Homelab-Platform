@@ -12,6 +12,11 @@ Applications deployed to the Kubernetes lab cluster via Argo CD.
 | [In-Cluster Registry](registry.md) | `registry` | `http://10.44.81.110:30500` | custom | ✅ |
 | [Uptime Kuma](uptime-kuma.md) | `uptime-kuma` | [kuma.lab.local](https://kuma.lab.local) | custom | ✅ |
 | [MinIO](minio.md) | `minio` | [minio.lab.local](https://minio.lab.local) | minio 5.4.0 | ✅ |
+| [N8N Automation](n8n.md) | `n8n` | [n8n.lab.local](https://n8n.lab.local) | custom | ✅ |
+| [HashiCorp Vault](vault.md) | `vault` | [vault.lab.local](https://vault.lab.local) | hashicorp/vault 0.32.0 | ✅ |
+| [Infisical](infisical.md) | `infisical` | [infisical.lab.local](https://infisical.lab.local) | infisical | ✅ |
+| [Logto (SSO/OIDC)](logto.md) | `logto` | [logto.lab.local](https://logto.lab.local) | custom | ✅ |
+| [OPA Gatekeeper](gatekeeper.md) | `gatekeeper-system` | [opa.lab.local/metrics](https://opa.lab.local/metrics) | gatekeeper v3.18.x | ✅ |
 | Grafana | `monitoring` | [grafana.lab.local](https://grafana.lab.local) | kube-prometheus-stack 82.4.3 | ✅ |
 | Argo CD | `argocd` | [argocd.lab.local](https://argocd.lab.local) | — | ✅ |
 | Longhorn UI | `longhorn-system` | [longhorn.lab.local](https://longhorn.lab.local) | — | ✅ |
